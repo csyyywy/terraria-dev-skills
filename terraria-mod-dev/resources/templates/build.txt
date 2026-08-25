@@ -1,0 +1,6 @@
+displayName = MyMod
+author = you
+version = 0.1.0
+# 可选：homepage = https://...
+# 可选依赖：modReferences = OtherMod, AnotherLib
+# 可选软依赖：weakReferences = SomeLib（装了可联动、没装也能跑）

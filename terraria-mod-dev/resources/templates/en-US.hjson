@@ -1,0 +1,29 @@
+{
+    "Mods": {
+        "MyMod": {
+            "Items": {
+                "ExampleItem": {
+                    "DisplayName": "Example Item",
+                    "Tooltip": "A simple item to verify mod loading and building."
+                },
+                "StarfallIngot": {
+                    "DisplayName": "Starfall Ingot",
+                    "Tooltip": "Metal smelted from the core of a fallen star."
+                },
+                "SunderCore": {
+                    "DisplayName": "Sunder Core",
+                    "Tooltip": "A crystal holding the power of the Sunder."
+                },
+                "StarfallEdge": {
+                    "DisplayName": "Starfall Edge",
+                    "Tooltip": "'When the stars fall, enemies meet their end.'"
+                }
+            },
+            "Projectiles": {
+                "StarfallSunder": {
+                    "DisplayName": "Sunder Starlash"
+                }
+            }
+        }
+    }
+}

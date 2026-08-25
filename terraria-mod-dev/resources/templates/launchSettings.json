@@ -1,0 +1,14 @@
+{
+  "profiles": {
+    "Terraria": {
+      "commandName": "Executable",
+      "executablePath": "<TML_INSTALL>\\start-tModLoader.bat",
+      "workingDirectory": "<TML_INSTALL>"
+    },
+    "TerrariaServer": {
+      "commandName": "Executable",
+      "executablePath": "<TML_INSTALL>\\start-tModLoaderServer.bat",
+      "workingDirectory": "<TML_INSTALL>"
+    }
+  }
+}

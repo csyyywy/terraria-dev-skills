@@ -1,0 +1,3 @@
+My first Terraria mod.
+
+A short description shown on the Steam Workshop and in the Mods list.
