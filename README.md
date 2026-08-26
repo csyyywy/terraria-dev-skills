@@ -2,7 +2,7 @@
 
 泰拉瑞亚（tModLoader 1.4.4 / net8.0）模组开发的 Agent Skills 合集（`SKILL.md` + `resources/` 分册结构）。
 
-> 公开版已**去除所有本机路径**，统一替换为通用占位符（见下表）。两条技能都来自真实的「归墟纪元 Voidfall」大型模组开发实战沉淀。
+> 公开版已**去除所有本机路径**，统一替换为通用占位符（见下表）。技能来自真实的「归墟纪元 Voidfall」大型模组开发实战沉淀。
 
 ## 包含
 
@@ -10,10 +10,11 @@
 |---|---|
 | `terraria-mod-dev` | 模组开发全流程：环境 / 工程结构 / 构建打包发布流水线 / API 速查（06 个小分册）/ 本地化 / 网络同步 / 跨模组 / 无头自动化测试 / 常见坑与实战教训 |
 | `terraria-ai-textures` | AI 生成贴图管线：贴图尺寸规范与生成提示词 / 透明边缘裁剪 / 显示归一化（弹幕·增益·物品 scale）/ 备份与验收 |
+| `terraria-mod-ui` | UI 开发与调试实战：绘制批次与坐标系（UIScaleMatrix/Main.Transform/screenPosition）/ 绘制钩子选型（1.4.4 PostDraw 不触发坑）/ 角色画像渲染（spriteBuffer/SerializedClone）/ 血条标签跟随 / 布局控件坑 / 探针调试方法论 |
 
 ## 安装
 
-把 `terraria-mod-dev/` 与 `terraria-ai-textures/` 放入你的 agent 技能目录（如 `skills/` 或 `.dsh/skills/`），然后在 agent 技能设置中重新扫描 / 注册。技能按需由 AI 自动加载。
+把 `terraria-mod-dev/`、`terraria-ai-textures/` 与 `terraria-mod-ui/` 放入你的 agent 技能目录（如 `skills/` 或 `.dsh/skills/`），然后在 agent 技能设置中重新扫描 / 注册。技能按需由 AI 自动加载。
 
 ## 路径占位符
 
@@ -48,6 +49,15 @@ terraria-dev-skills/
         ├── 01-trim-crop.md
         ├── 02-normalize-display.md
         └── 03-texture-spec.md
+└── terraria-mod-ui/
+    ├── SKILL.md
+    └── resources/
+        ├── 01-coordinates-batches.md   # 坐标系与绘制批次
+        ├── 02-drawing-hooks.md         # 绘制钩子选型
+        ├── 03-portrait-rendering.md    # 角色画像渲染
+        ├── 04-layout-pitfalls.md       # 布局与控件坑
+        ├── 05-debugging.md            # 调试方法论
+        └── 06-text-labels.md          # UI 文字与血条标签
 ```
 
 ## 许可证
