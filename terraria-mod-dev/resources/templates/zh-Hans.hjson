@@ -6,22 +6,22 @@
                     "DisplayName": "示例物品",
                     "Tooltip": "一个用于验证模组加载与构建的简单示例物品。"
                 },
-                "StarfallIngot": {
-                    "DisplayName": "星陨锭",
-                    "Tooltip": "熔自坠星之核的金属，剑刃的材料。"
+                "ExampleIngot": {
+                    "DisplayName": "示例锭",
+                    "Tooltip": "由矿石熔炼成的合成材料。"
                 },
-                "SunderCore": {
-                    "DisplayName": "归墟晶核",
-                    "Tooltip": "凝聚着归墟之力的晶核，剑柄的剑魂。"
+                "ExampleCore": {
+                    "DisplayName": "示例晶核",
+                    "Tooltip": "由 Boss 掉落的稀有组件。"
                 },
-                "StarfallEdge": {
-                    "DisplayName": "星陨·归墟之刃",
-                    "Tooltip": "「群星陨落之时，便是敌人的末路。」\n挥击会撕裂出一道贯穿星空的归墟星芒。"
+                "ExampleSword": {
+                    "DisplayName": "示例剑",
+                    "Tooltip": "挥击时会释放一道弹幕的剑。"
                 }
             },
             "Projectiles": {
-                "StarfallSunder": {
-                    "DisplayName": "归墟星芒"
+                "ExampleBolt": {
+                    "DisplayName": "示例弹幕"
                 }
             }
         }

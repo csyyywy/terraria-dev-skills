@@ -1,20 +1,19 @@
 <#
-  link-mod.ps1 - Link a workspace mod project into tModLoader ModSources (junction).
-  Usage: powershell -ExecutionPolicy Bypass -File link-mod.ps1 [-ModName MyMod] [-Workspace <WORKSPACE>]
-  Idempotent: an existing junction is detected and reported, never overwritten.
+  link-mod.ps1 - 把工作区的模组工程以 junction 方式链接进 tModLoader 的 ModSources。
+
+  用法:
+    powershell -ExecutionPolicy Bypass -File link-mod.ps1 -ModName <Mod> [-Workspace <目录>] [-TerrariaDocs <Terraria 存档目录>]
+
+  -Workspace 省略时取当前目录；-TerrariaDocs 省略时取 %USERPROFILE%\Documents\My Games\Terraria。
+  幂等：已存在的 junction 只报告、不覆盖。
 #>
 param(
-    [string]$ModName = "MyMod",
-    [string]$Workspace = '',
+    [Parameter(Mandatory)] [string]$ModName,
+    [string]$Workspace = (Get-Location).Path,
     [string]$TerrariaDocs = "$env:USERPROFILE\Documents\My Games\Terraria"
 )
 
 $ErrorActionPreference = "Stop"
-if (-not $Workspace) {
-    # 默认：脚本向上 5 级（<workspace>\skills\terraria-mod-dev\resources\scripts）
-    $ws = Resolve-Path (Join-Path $PSScriptRoot '..\..\..\..\..') -ErrorAction SilentlyContinue
-    if ($ws) { $Workspace = $ws.Path }
-}
 $modSources = Join-Path $TerrariaDocs "tModLoader\ModSources"
 $src = Join-Path $Workspace $ModName
 $link = Join-Path $modSources $ModName

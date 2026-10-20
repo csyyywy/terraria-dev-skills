@@ -1,65 +1,78 @@
 # terraria-dev-skills
 
-泰拉瑞亚（tModLoader 1.4.4 / net8.0）模组开发的 Agent Skills 合集（`SKILL.md` + `resources/` 分册结构）。
+Terraria（tModLoader 1.4.4 / net8.0）模组开发的 Agent Skills 合集，采用 `SKILL.md` + `resources/` 分册结构，可直接放入 agent 的技能目录（如 `.dsh/skills/`）按需加载。
 
-> 公开版已**去除所有本机路径**，统一替换为通用占位符（见下表）。技能来自真实的「归墟纪元 Voidfall」大型模组开发实战沉淀。
+## 包含的技能
 
-## 包含
-
-| Skill | 说明 |
+| 技能 | 用途 |
 |---|---|
-| `terraria-mod-dev` | 模组开发全流程：环境 / 工程结构 / 构建打包发布流水线 / API 速查（06 个小分册）/ 本地化 / 网络同步 / 跨模组 / 无头自动化测试 / 常见坑与实战教训 |
-| `terraria-ai-textures` | AI 生成贴图管线：贴图尺寸规范与生成提示词 / 透明边缘裁剪 / 显示归一化（弹幕·增益·物品 scale）/ 备份与验收 |
-| `terraria-mod-ui` | UI 开发与调试实战：绘制批次与坐标系（UIScaleMatrix/Main.Transform/screenPosition）/ 绘制钩子选型（1.4.4 PostDraw 不触发坑）/ 角色画像渲染（spriteBuffer/SerializedClone）/ 血条标签跟随 / 布局控件坑 / 探针调试方法论 |
+| `terraria-mod-dev` | 模组开发入口：环境与工程结构、构建 / 调试 / 发布流水线、tModLoader API 速查（6 个分册）、本地化、网络同步、跨模组互操作、无头服务器自动化测试、常见错误排查 |
+| `silky-ui-framework` | SilkyUIFramework（SilkyUI）UI 框架：前置接入、注册与生命周期、XML 声明式布局、Flexbox 引擎、定位与三套 Bounds、内置控件、事件与输入、数据绑定、渲染管线、动画 |
+| `terraria-mod-ui` | 原生 UI 与绘制经验：绘制批次与坐标系、绘制钩子选型（1.4.4 `PostDraw` 不触发）、角色画像渲染、血条与头顶标签、布局控件坑、探针调试方法论 |
+| `terraria-ai-textures` | AI 生成贴图管线：尺寸规范与提示词（CSV）→ 透明边缘裁剪 → 显示归一化（弹幕 / 增益 / 物品手持）→ 替换与验收 |
 
 ## 安装
 
-把 `terraria-mod-dev/`、`terraria-ai-textures/` 与 `terraria-mod-ui/` 放入你的 agent 技能目录（如 `skills/` 或 `.dsh/skills/`），然后在 agent 技能设置中重新扫描 / 注册。技能按需由 AI 自动加载。
+把需要的技能目录（例如 `terraria-mod-dev/`）放入 agent 的技能目录，然后重新扫描 / 注册技能。技能自带 `description` / `whenToUse`，由 agent 按任务自动匹配加载。
+
+```
+.dsh/skills/
+├── terraria-mod-dev/
+├── silky-ui-framework/
+├── terraria-mod-ui/
+└── terraria-ai-textures/
+```
 
 ## 路径占位符
 
+文档中不写死任何本机路径，统一使用下列占位符。
+
 | 占位符 | 含义 |
 |---|---|
-| `<WORKSPACE>` | 模组源码工作区根目录（如 `D:\ai\mod`） |
-| `<STEAM_LIB>` | Steam 游戏库根目录（如 `E:\SteamLibrary`） |
-| `%USERPROFILE%` | 当前用户主目录（Windows 标准环境变量，展开为 `C:\Users\<用户>`） |
-| `<TML_INSTALL>` | 你的 tModLoader 安装目录（如 `<STEAM_LIB>\steamapps\common\tModLoader`） |
-| `<TML_SRC>` | tModLoader 源码 / ExampleMod 克隆目录（可选，参考 API 用） |
-| `<COMFYUI_OUTPUT>` | ComfyUI 图像输出目录（terraria-ai-textures 用） |
-| `TMLInstall` | 构建时环境变量：指向 tML 安装目录（`templates/MyMod.csproj` 的 `<Import>` 用它） |
-| `TML_SELFTEST_DIR` | 无头测试桥接目录环境变量（`scripts/headless-test.ps1` 与 `examples/SelfTestCommand.cs` 的约定名） |
+| `<TML_DIR>` | tModLoader 安装目录（Steam 库下 `steamapps\common\tModLoader`） |
+| `<TML_SRC>` | tModLoader 源码 / ExampleMod 检出目录（对照 API 用，可选） |
+| `<WORKSPACE>` | 模组源码工作区根目录 |
+| `<ModName>` | 模组工程名 |
+| `%USERPROFILE%` | Windows 用户目录（PowerShell 中写 `$env:USERPROFILE`） |
+| `$(TMLDir)` | csproj 中导入 `tMLMod.targets` 的 MSBuild 属性；构建时传 `-p:TMLDir="<TML_DIR>"` |
+| `MOD_TESTDIR` | 无头测试的指令桥根目录（环境变量，由 `headless-test.ps1` 注入） |
 
-脚本（`scripts/*.ps1`）默认按**相对脚本位置**自动探测工作区与工具链；无法探测时请显式传参（`-Workspace` / `-TmlDir` / `-DotNet`）。
+## 脚本
 
-## 结构
+`terraria-mod-dev/resources/scripts/` 下的脚本均已参数化，不再依赖机器专属路径：
+
+| 脚本 | 作用 | 关键参数 |
+|---|---|---|
+| `build.ps1` | 用带 SDK 的 dotnet 构建，可只编译不打包 | `-ProjectPath` `-Config` `-SkipPack` |
+| `link-mod.ps1` | 把工程以 junction 链接进 `ModSources` | `-ModName` `-Workspace` `-TerrariaDocs` |
+| `unlink-mod.ps1` | 移除该 junction（不删源码） | `-ModName` `-TerrariaDocs` |
+| `check-hjson.ps1` | 用真实 Hjson 解析器校验本地化文件 | `-Dir` `-DotNet` |
+| `headless-test.ps1` | 构建验证 / 无头服务器自检 | `-ProjectPath` `-ModName` `-TmlDir` `-ValidateOnly` `-BuildProps` |
+
+## 目录结构
 
 ```
 terraria-dev-skills/
-├── README.md
 ├── terraria-mod-dev/
 │   ├── SKILL.md
 │   └── resources/
-│       ├── 00-quickstart.md ... 13-headless-testing.md   # 分册（04 拆成 04a..04f 六个小分册）
-│       ├── examples/    # 示例代码（ExampleItem / ExampleSword / SelfTestCommand 等）
-│       ├── scripts/     # build.ps1 / link-mod.ps1 / unlink-mod.ps1 / headless-test.ps1
-│       └── templates/   # 工程模板（MyMod.csproj / Mod.cs / launchSettings.json / hjson / 占位贴图）
+│       ├── 00-quickstart.md … 13-headless-testing.md   # 04 拆为 04a–04f 六个分册
+│       ├── examples/    # 示例内容类与无头自检系统
+│       ├── scripts/     # 构建 / 链接 / hjson 校验 / 无头测试
+│       └── templates/   # 工程模板（csproj / 主类 / launchSettings / hjson / 占位贴图）
+├── silky-ui-framework/
+│   ├── SKILL.md
+│   └── resources/       # 01-setup … 11-troubleshooting
+├── terraria-mod-ui/
+│   ├── SKILL.md
+│   └── resources/       # 01-coordinates-batches … 06-text-labels
 └── terraria-ai-textures/
     ├── SKILL.md
-    └── resources/
-        ├── 01-trim-crop.md
-        ├── 02-normalize-display.md
-        └── 03-texture-spec.md
-└── terraria-mod-ui/
-    ├── SKILL.md
-    └── resources/
-        ├── 01-coordinates-batches.md   # 坐标系与绘制批次
-        ├── 02-drawing-hooks.md         # 绘制钩子选型
-        ├── 03-portrait-rendering.md    # 角色画像渲染
-        ├── 04-layout-pitfalls.md       # 布局与控件坑
-        ├── 05-debugging.md            # 调试方法论
-        └── 06-text-labels.md          # UI 文字与血条标签
+    └── resources/       # 01-trim-crop / 02-normalize-display / 03-texture-spec
 ```
 
-## 许可证
+## 说明
 
-内容随使用场景自由采用；若发布产物请保留本说明与出处。
+- 内容来自真实模组开发实践，已去除本机路径、内部项目代号与私有联系方式；示例中的模组名、类名、物品名均为通用占位。
+- 基线版本：tModLoader 1.4.4（2026.06 stable）。API 签名与行为以 [官方文档](https://docs.tmodloader.net/docs/stable/) 与你本地的 tModLoader 源码为准。
+- 第三方框架 SilkyUI 的说明以其上游仓库为准：https://github.com/487666123/SilkyUIFramework

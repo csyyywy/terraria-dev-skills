@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!-- tModLoader 模组工程文件（1.4.4 / net8.0 / LangVersion 12） -->
-<!-- 两种写法：
-     A) 工程直接放在 ModSources\<ModName>：用规范相对导入 <Import Project="..\tModLoader.targets" />
-     B) 工程在 junction 工作区：构建时设环境变量 TMLInstall 指向 tModLoader 安装目录（如下），
-        或把下行 Import 改成本机绝对路径。
+<!-- 两种导入方式：
+     A) 工程直接放在 ModSources\<ModName> 下：用相对导入 <Import Project="..\tModLoader.targets" />
+     B) 工程在 junction 工作区等其它位置：用属性传入 tModLoader 安装目录（如下），
+        构建时指定：dotnet build -p:TMLDir="<tModLoader 安装目录>"
 -->
 <Project Sdk="Microsoft.NET.Sdk">
-  <Import Project="$(TMLInstall)\tMLMod.targets" Condition="'$(TMLInstall)' != '' And Exists('$(TMLInstall)\tMLMod.targets')" />
+  <Import Project="$(TMLDir)\tMLMod.targets" />
   <PropertyGroup>
     <!-- tMLMod.targets 已设 TargetFramework=net8.0 / LangVersion=12.0 / PlatformTarget=AnyCPU -->
     <AssemblyName>MyMod</AssemblyName>

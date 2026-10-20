@@ -6,22 +6,22 @@
                     "DisplayName": "Example Item",
                     "Tooltip": "A simple item to verify mod loading and building."
                 },
-                "StarfallIngot": {
-                    "DisplayName": "Starfall Ingot",
-                    "Tooltip": "Metal smelted from the core of a fallen star."
+                "ExampleIngot": {
+                    "DisplayName": "Example Ingot",
+                    "Tooltip": "A crafting material smelted from ore."
                 },
-                "SunderCore": {
-                    "DisplayName": "Sunder Core",
-                    "Tooltip": "A crystal holding the power of the Sunder."
+                "ExampleCore": {
+                    "DisplayName": "Example Core",
+                    "Tooltip": "A rare component dropped by a boss."
                 },
-                "StarfallEdge": {
-                    "DisplayName": "Starfall Edge",
-                    "Tooltip": "'When the stars fall, enemies meet their end.'"
+                "ExampleSword": {
+                    "DisplayName": "Example Sword",
+                    "Tooltip": "A sword whose swing releases a projectile."
                 }
             },
             "Projectiles": {
-                "StarfallSunder": {
-                    "DisplayName": "Sunder Starlash"
+                "ExampleBolt": {
+                    "DisplayName": "Example Bolt"
                 }
             }
         }

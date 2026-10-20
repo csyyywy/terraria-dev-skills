@@ -9,10 +9,10 @@ using Terraria.ModLoader;
 namespace MyMod.Common.Testing
 {
     /// <summary>
-    /// Headless-test bridge (doc: skills .../resources/13-headless-testing.md).
+    /// Headless-test bridge (see resources/13-headless-testing.md).
     /// Copy this file into the mod under test, then:
     ///   - register your cases in Load() via RegisterTest("case", () => detail);
-    ///   - launch through scripts/headless-test.ps1, which sets env TML_SELFTEST_DIR
+    ///   - launch through scripts/headless-test.ps1, which sets env MOD_TESTDIR
     ///     and writes commands to  <root>/in/commands.txt,
     ///     reads results from      <root>/out/results.txt  ("[TEST] case PASS|FAIL detail").
     ///
@@ -31,11 +31,11 @@ namespace MyMod.Common.Testing
 
         // Enabled only when launched by headless-test.ps1 (env var present).
         public override bool IsLoadingEnabled(Mod mod)
-            => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("TML_SELFTEST_DIR"));
+            => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MOD_TESTDIR"));
 
         public override void Load()
         {
-            _root = Environment.GetEnvironmentVariable("TML_SELFTEST_DIR");
+            _root = Environment.GetEnvironmentVariable("MOD_TESTDIR");
             if (_root == null) return;
 
             // ---- built-in smoke case ------------------------------------

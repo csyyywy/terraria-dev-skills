@@ -1,14 +1,15 @@
 {
+  "_note": "把 %TML_DIR% 替换为本机 tModLoader 安装目录（例如 Steam 库下 steamapps\\common\\tModLoader）。",
   "profiles": {
     "Terraria": {
       "commandName": "Executable",
-      "executablePath": "<TML_INSTALL>\\start-tModLoader.bat",
-      "workingDirectory": "<TML_INSTALL>"
+      "executablePath": "%TML_DIR%\\start-tModLoader.bat",
+      "workingDirectory": "%TML_DIR%"
     },
     "TerrariaServer": {
       "commandName": "Executable",
-      "executablePath": "<TML_INSTALL>\\start-tModLoaderServer.bat",
-      "workingDirectory": "<TML_INSTALL>"
+      "executablePath": "%TML_DIR%\\start-tModLoaderServer.bat",
+      "workingDirectory": "%TML_DIR%"
     }
   }
 }

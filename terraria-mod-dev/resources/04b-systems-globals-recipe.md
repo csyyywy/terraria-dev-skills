@@ -1,6 +1,6 @@
 # 04b. API 速查 · ModSystem / ModPlayer / Global* / 合成配方
 
-> 属 04 分册家族（原 §4.7–4.10）；索引与通用原则见 `04-api-cheatsheet.md`。
+> §4.7–4.10。索引与通用原则见 `04-api-cheatsheet.md`。
 
 ## 4.7 ModSystem（游戏系统）
 
@@ -22,7 +22,7 @@ public class MySystem : ModSystem
     public override void LoadWorldData(TagCompound tag) { }   // 与 SaveWorldData 成对覆写（MustOverrideTogether）
     public override void SaveWorldHeader(TagCompound tag) { } // 世界列表 UI 可读的小数据量头信息
 
-    // ⚠️ NetSend/NetReceive ≠ 存档！NetSend 仅服务端在 WorldData 消息时调用
+    // 注意：NetSend/NetReceive ≠ 存档。NetSend 仅服务端在 WorldData 消息时调用
     //（Boss 击败/新一天/玩家加入），不是持续同步通道；跨会话保存必须走 SaveWorldData/LoadWorldData。
 }
 ```
@@ -57,7 +57,7 @@ public class MyPlayer : ModPlayer
 
 ## 4.10 合成配方（Recipe）
 
-> ⚠️ **Recipe.Create 只能在配方相关方法里调用**：`ModItem.AddRecipes()`、`ModSystem.AddRecipes()`、`GlobalItem.AddRecipes()`。**不能放在 Load() / Update 等里**，否则加载时抛 `RecipeException: A Recipe can only be created inside recipe related methods` 并禁用模组。
+> 注意：`Recipe.Create` 只能在配方相关方法里调用 —— `ModItem.AddRecipes()`、`ModSystem.AddRecipes()`、`GlobalItem.AddRecipes()`。放进 `Load()` / `Update` 等会抛 `RecipeException: A Recipe can only be created inside recipe related methods` 并禁用模组。
 
 ```csharp
 // 写在 ModItem.AddRecipes() 或 ModSystem（静态）里

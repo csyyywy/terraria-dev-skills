@@ -1,6 +1,6 @@
 # 03. 贴图尺寸规范 + 可改 vs 固定分类 + 生成提示词
 
-> 给 AI 生成定规范：哪些贴图可改大小、生成到什么尺寸、提示词怎么写。
+> AI 生成规范：可改范围、目标尺寸、提示词写法。
 
 ## 固定规格（不可改，保持原样）
 
@@ -21,26 +21,25 @@
 ## 可改变大小（物品图标 / 弹幕 / 增益）
 
 - 范围：Items/（非装备附加帧）、Projectiles/、Buffs/。
-- 放大到 100 宽（高按原比例，如 20×20→100×100、56×30→100×54）：AI 大画布好画，之后再裁剪+代码归一化，生成/裁剪阶段不缩放像素。
+- 放大到 100 宽，高按原比例（如 20×20→100×100、56×30→100×54）：AI 大画布好画，之后再裁剪 + 代码归一化；生成/裁剪阶段不缩放像素。
 - 输出物：全量表 texture-replace-sheet.csv + 可改图标专属表 texture-replace-sheet-icons.csv（5 列：序号, 贴图名称, 对应内容/装备, 尺寸(宽×高), 英文生成提示词）。
 
 ## 生成提示词要点
 
-- 尺寸规格写「ONE 40x56 equip frame」这类单帧，不要「centered on canvas, fill 80-90%」（那是物品图标居中构图，会留白）。
-- 强调铺满：filling the ENTIRE canvas edge-to-edge, span top to bottom, NO margins/gaps, full-bleed。（对应中文：整个画面从上到下铺满、不留间隙。）
-- 明确深色或者黑色背景生成后成透明底）。
-- 装备帧位置提示：head 在帧上半、leggings 在帧下半、Body 用官方 composite 模板。
+- 构图：尺寸写单帧规格（如「ONE 40x56 equip frame」），不要「centered on canvas, fill 80-90%」——那是物品图标居中构图，会留白；装备帧里 head 在帧上半、leggings 在下半、Body 用官方 composite 模板。
+- 铺满：filling the ENTIRE canvas edge-to-edge, span top to bottom, NO margins/gaps, full-bleed（整个画面从上到下铺满、不留间隙）。
+- 背景：明确深色/黑色背景生成后成透明底。
 
 ## CSV 编码
 
 - 必须 UTF-8 with BOM：中文 Windows 的 Excel 按 GBK 读无 BOM 文件 → 乱码。
-- 用 PowerShell Export-Csv 生成的 .ps1 若含中文属性名（如 贴图名称），脚本文件本身要 UTF-8 BOM 或纯 ASCII（Windows PowerShell 5.1 按 ANSI 读无 BOM 的中文 → 解析错乱/函数找不到）。
+- PowerShell 生成的 .ps1 若含中文属性名（如 贴图名称），脚本本身要 UTF-8 BOM 或纯 ASCII；Windows PowerShell 5.1 按 ANSI 读无 BOM 的中文 → 解析错乱、函数找不到。
 
 ## 排查速查
 
 | 症状 | 原因 | 修法 |
 |---|---|---|
-| 物品栏图标巨大溢出 | 大贴图无自动缩放？ | 实际有：物品栏自动缩放（sizeLimit≈32），正常；检查是否代码里改过 Item.scale |
+| 物品栏图标巨大溢出 | 大贴图无自动缩放？ | 实际有：物品栏自动缩放（sizeLimit≈32）正常；查是否代码改过 Item.scale |
 | 弹幕巨大 | 贴图 1:1 绘制 | GlobalProjectile scale 归一化 |
 | 武器挥动巨大 | 手持用主贴图无缩放 | GlobalItem.ModifyItemScale 归一化（排除 _Held 武器） |
 | 增益图标大小不一 | buff 栏固定绘制 | GlobalBuff.PreDraw 自绘 32×32 |
