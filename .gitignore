@@ -1,0 +1,8 @@
+# DSH 原子写操作产生的临时锁文件
+.dsh-ops-update-*.lock
+
+# 编辑器 / 系统垃圾
+.DS_Store
+Thumbs.db
+desktop.ini
+*.swp
