@@ -248,7 +248,7 @@ pwsh -File resources/scripts/boot-log.ps1 -Lab gems -Side server -Tail 40
 | 现象 | 判据 | 处理 |
 |---|---|---|
 | 进程没起来 | `Get-Process dotnet` 里没有对应 lab 的进程 | 看 `-Detach` 输出；端口/Steam 前置检查会先报 |
-| 进程在、日志停在 `Hook …AssemblyLoadContext…` | 客户端自己的 `client.log` 没有 `Finding Mods` | 缺完整 `config.json`（模板在 `resources/config/config.json`），或 Steam 没登录 |
+| 进程在、日志停在 `Hook …AssemblyLoadContext…` | 客户端自己的 `client.log` 没有 `Finding Mods` | 缺完整 `config.json`（模板在 `resources/config/client-config.json`），或 Steam 没登录 |
 | `Finding Mods` 有、桥 `log-client.txt` 没生成 | 环境变量没进子进程 | 用驱动启动（它设 `TMLKIT_ROOT`）；手工启动时自己 export |
 | 桥 arm 了但没有 `[TEST]` | 用例没注册 / 名字不匹配 | `session.ps1 -Action Run -Commands 'ping'` 先验通道 |
 | 客户端弹模态框（`Unable to access Steam Workshop` / `Select Language` / `Fatal Error`） | 模态框挡住加载，世界永远进不去 | 驱动会在 90s 内识别并失败，同时截 `out/client-failure.png`；按提示修 Steam/配置后重跑 |

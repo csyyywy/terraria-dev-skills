@@ -69,5 +69,5 @@ ilspycmd -t Terraria.NPC "<TML_DIR>/tModLoader.dll" > npc.cs
 - `09-links.md` · `10-official-reference.md` 官方资源导航
 - `11-armor-textures.md` 装备/盔甲贴图规格
 - `12-modconfig.md` ModConfig 配置系统
-- `13-headless-testing.md` 无头服务器自动化测试（配合 `scripts/headless-test.ps1`、`examples/SelfTestCommand.cs`）；需要客户端截图与测试角色配置时用技能 `terraria-headless-test`
+- `13-headless-testing.md` 无头服务器自动化测试（配合 `技能 terraria-headless-test 的 scripts/tml.ps1`、`resources/templates/`）；需要客户端截图与测试角色配置时用技能 `terraria-headless-test`
 - `templates/` 模板 · `examples/` 示例 · `scripts/` 脚本

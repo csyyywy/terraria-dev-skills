@@ -5,6 +5,8 @@
 
 > 关键词：headless、无头测试、tModLoader、自动化截图、UI 断言、CI 自测
 
+[![CI](https://github.com/csyyywy/terraria-dev-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/csyyywy/terraria-dev-skills/actions/workflows/ci.yml)
+
 ---
 
 ## 它解决什么问题
@@ -28,6 +30,30 @@ if (Netplay.HasClients) Game.Update(...);   // 零客户端 → 世界不更新
 
 ---
 
+## 实拍：它真的在跑
+
+下面两张都是**测试用例自己拍的**（`c:shot`），不是人按 F12：
+
+![L2 客户端：真实世界 + 背包界面](docs/images/l2-inventory.png)
+
+*L2 客户端进世界；`c:ui inventory` 打开背包再截图。窗口是最小化的，键盘/鼠标走进程内注入。*
+
+![区域截图：三块贴图对照](docs/images/region-assertpix.png)
+
+*`c:shot probe-region 90 90 270 70` 只拍 270×70 的区域：左=物品贴图，中=MagicPixel，右=原版 UI 贴图。*
+
+同一帧还能直接断言像素，不用人眼看图：
+
+```
+[PASS] assertpix :: at=110,110 got=f71318 want=ff0000 d=8,19,24 tol=60
+[PASS] assertpix :: at=210,110 got=ffffff want=ffffff d=0,0,0 tol=20
+[PASS] assertpix :: at=310,110 got=3f5297 want=0000ff d=63,82,104 tol=200
+[PASS] shot:l2suite      157218 bytes, 800x720
+[PASS] shotstat:l2suite  distinct=560 nonUniform=0.653
+```
+
+`shotstat` 的 `distinct`（颜色种类）与 `nonUniform`（非主导色占比）可以当“面板是不是空的”的断言，
+不用再靠人眼判断。
 ## 快速开始
 
 ```powershell
@@ -107,6 +133,24 @@ docs/                     设计取舍（含被否决的方案与原因）
 
 ---
 
+## 在 CI 里跑
+
+仓库自带两个工作流：
+
+| 工作流 | 跑在哪 | 做什么 |
+|---|---|---|
+| `ci.yml` | GitHub 托管 runner（windows-latest） | 脚本语法、JSON 结构、文档引用、隐私扫描、`-PlanOnly` 冒烟；**不需要游戏** |
+| `l2-selfhosted.yml` | 自托管 Windows runner（标签 `tmodloader`） | 体检 → 起客户端 → 跑 suite → **上传截图与日志 artifact** |
+
+托管 runner 上能跑的部分，本地也能一条命令复现：
+
+```powershell
+pwsh -File scripts/ci-check.ps1                       # 检查本技能
+pwsh -File scripts/ci-check.ps1 -SkillRoot ../其他技能  # 检查别的技能
+```
+
+自托管那份需要三个仓库变量：`TML_DIR`、`TMOD_PATH`、`MOD_NAME`（可选 `PLAYER_NAME`）。
+它只做一件事：**让你在 PR 里看到真实截图**，而不是“我这边能跑”。
 ## 前置与限制
 
 - Windows + PowerShell 7 + .NET 8；tModLoader **1.4.4**（API 随版本变动，其他版本未验证）。

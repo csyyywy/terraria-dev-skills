@@ -41,8 +41,8 @@
 
 ## 11.5 修复工具
 
-- `<Mod>/tools/fix-armor-textures.ps1`：扫描 `Content/Items/Armor/*_Head/_Body/_Legs.png`，把图标缩放到帧内标准位置并复制 20 帧（40×1120）；Body 用 `tools/ref/ExampleBreastplate_Body.png` 模板重着色为 360×224。原图备份到 `tools/backup-armor-<ts>/`（加入 `.gitignore`）。
-- 模板基准：`tools/ref/ExampleBreastplate_Body.png`（官方 360×224 body 布局）。
+- `<Mod>/tools/fix-armor-textures.ps1`：扫描 `Content/Items/Armor/*_Head/_Body/_Legs.png`，把图标缩放到帧内标准位置并复制 20 帧（40×1120）；Body 用 `<Mod>/tools/ref/ExampleBreastplate_Body.png` 模板重着色为 360×224。原图备份到 `<Mod>/tools/backup-armor-<ts>/`（加入 `.gitignore`）。
+- 模板基准：`<Mod>/tools/ref/ExampleBreastplate_Body.png`（官方 360×224 body 布局）。
 - 建议流程：先出透明底图标 → 生成单帧 → 拼帧，而不是让 AI 直接出整张精灵表。
 
 ## 11.6 AI 生成提示词要点
@@ -50,4 +50,4 @@
 - 尺寸写 "ONE 40x56 equip frame"（单帧），不要写 "centered on canvas, fill 80-90%"（那是物品图标构图）。
 - 位置：head armor 在帧上半部（头部区域），leggings 在帧下半部（腿部区域）。
 - 明确"最终精灵表 = 20 帧相同竖向拼接（40×1120）"，并要求 transparent background。
-- Body 提示词指向官方 composite 模板布局（`tools/ref/ExampleBreastplate_Body.png`）。
+- Body 提示词指向官方 composite 模板布局（`<Mod>/tools/ref/ExampleBreastplate_Body.png`）。

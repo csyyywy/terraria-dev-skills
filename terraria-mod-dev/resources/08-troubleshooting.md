@@ -191,7 +191,7 @@ cmd /c dir "$env:USERPROFILE\Documents\My Games\Terraria\tModLoader\ModSources"
 
 | 症状 | 原因 | 修复 |
 |---|---|---|
-| 盔甲穿戴错位/花屏 | 装备贴图（_Head/_Body/_Legs）按物品图标尺寸生成，非帧规格 | 见 `11-armor-textures.md` 与模组内 `tools/fix-armor-textures.ps1` |
+| 盔甲穿戴错位/花屏 | 装备贴图（_Head/_Body/_Legs）按物品图标尺寸生成，非帧规格 | 见 `11-armor-textures.md` 与模组内 `<Mod>/tools/fix-armor-textures.ps1` |
 | 发布/ModSources 构建报 CS0246（`List<>`/`Math` 找不到）但本地 build 过 | tML 发布构建不应用 csproj 的 ImplicitUsings | 显式 using 或 GlobalUsings.cs；本地用 `-p:ImplicitUsings=disable` 验证（见 03） |
 | 打包报 `TML003: Please close tModLoader or disable the mod in-game` | tML 客户端或残留 server 占用 .tmod | 区分进程：`-terrariasteamclient`=客户端别杀，裸 tModLoader.dll=残留 server 可杀；退出后再打包（见 03） |
 | PowerShell 跑 .ps1 报 "term 'X' is not recognized" 但函数已定义 | .ps1 是 UTF-8 无 BOM + 中文注释，Windows PowerShell 5.1 按 ANSI 解析把函数定义弄坏 | 注释全用 ASCII，或存 UTF-8 BOM |

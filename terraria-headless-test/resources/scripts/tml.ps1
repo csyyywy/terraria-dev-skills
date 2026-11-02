@@ -115,7 +115,8 @@ if (-not $TmlDir) {
 		$TmlDir = $CopyTml
 	}
 }
-if (-not (Test-Path (Join-Path $TmlDir 'tModLoader.dll'))) { throw "找不到 tModLoader: $TmlDir" }
+if ($PlanOnly -and -not $TmlDir) { $TmlDir = '<TML_DIR>' }
+if (-not $PlanOnly -and -not (Test-Path (Join-Path $TmlDir 'tModLoader.dll'))) { throw "找不到 tModLoader: $TmlDir（-PlanOnly 不需要真实安装）" }
 $LabRoot = Join-Path (Join-Path $KitRoot 'labs') $Lab
 
 # 沙盒必须自带完整 config.json：缺字段时 tML 走"首次运行"流程，停在 Select Language 界面，
@@ -164,7 +165,7 @@ if (-not $Tmod) {
 	}
 	if (-not $Tmod) { throw "找不到 $ModDir 编出来的 .tmod（$BuildRoot\Mods 里没有）" }
 }
-if (-not (Test-Path $Tmod)) { throw "找不到 $Tmod" }
+if (-not $PlanOnly -and -not (Test-Path $Tmod)) { throw "找不到 $Tmod" }
 if (-not $ModName) { $ModName = [IO.Path]::GetFileNameWithoutExtension($Tmod) }
 
 # ★ 同 lab 已有会话时必须先停：否则旧服务端继续持有旧 .tmod（复制会失败/不生效），
@@ -192,6 +193,22 @@ if ((Test-Path $sessFile) -and -not $Reuse) {
 		Get-ChildItem $InDir -File -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
 		Log 'previous session stopped; .tmod handles released'
 	} catch { Log ('stop old session failed: ' + $_.Exception.Message) }
+}
+
+if ($PlanOnly) {
+	Log '--- PLAN ONLY（不创建目录、不复制文件、不启动进程）---'
+	Log "lab        : $LabRoot"
+	Log "install    : $TmlDir"
+	Log "mod        : $ModName  <-  $Tmod"
+	Log "lab mods   : $ModsDir"
+	Log "lab saves  : $SaveDir"
+	Log "port       : $Port"
+	Log "env        : TMLKIT_ROOT=$LabRoot"
+	Log "commands   : $($Commands -join ' | ')"
+	Log "expect     : $($Expect -join ',')"
+	Log "processes  : server=1 client=$(if ($Client) { 1 } else { 0 })"
+	Log ("server cmd : " + $DotNet + ' "' + $TmlDir + '\tModLoader.dll" -server -config "' + (Join-Path $LabRoot 'serverconfig.txt') + '" -tmlsavedirectory "' + $SaveDir + '" -modpath "' + $ModsDir + '"')
+	exit 0
 }
 
 if (-not $KeepMods) { Get-ChildItem $ModsDir -Filter '*.tmod' -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue }
@@ -517,20 +534,7 @@ Log "mode: Client=$Client Port=$Port"
 		Log ('cmds: ' + ($lines -join ' | '))
 	}
 
-if ($PlanOnly) {
-	Log '--- PLAN ONLY ---'
-	Log "lab        : $LabRoot"
-	Log "install    : $TmlDir"
-	Log "mod        : $ModName  <-  $Tmod"
-	Log "lab mods   : $ModsDir"
-	Log "lab saves  : $SaveDir"
-	Log "port       : $Port"
-	Log "env        : TMLKIT_ROOT=$LabRoot"
-	Log "commands   : $($Commands -join ' | ')"
-	Log "expect     : $($Expect -join ',')"
-	Log "processes  : server=1 client=$(if ($Client) { 1 } else { 0 })"
-	exit 0
-}
+
 try {
 	$wsArg = ''
 	if ($IsolatedWorkshop) {
