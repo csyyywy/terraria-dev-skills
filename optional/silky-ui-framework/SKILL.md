@@ -1,7 +1,10 @@
 ---
 name: silky-ui-framework
-description: SilkyUIFramework（SilkyUI）tModLoader UI 框架使用指南：前置接入、RegisterUI / RegisterGlobalUI 注册、BaseBody / UIView 层次与生命周期、XML 声明式布局与 Name 映射、Flexbox 布局（换行 / FlexGrow / FlexShrink）、Dimension / Anchor / Positioning 与三套 Bounds、内置控件（文本 / 输入框 / 滑块 / 开关 / 滚动视图 / 物品槽 / 图片 / GIF）、鼠标事件链与焦点 / IME、DataContext 数据绑定与命令、渲染管线（RenderTarget / 模糊 / SDF / 裁剪 / 截图）、AnimationTimer 动画。
-whenToUse: 用 SilkyUI 编写或修改 tModLoader 模组 UI（面板 / 弹窗 / 物品栏 / 右键菜单 / 设置页），或排查"布局不对 / 控件不显示 / 事件不触发 / 换行不生效"类问题时加载。
+description: SilkyUI（tModLoader UI 框架）：接入与注册、BaseBody / UIView 生命周期、XML 声明式布局、Flexbox、Dimension / Anchor / Bounds、内置控件、事件与输入、DataContext 绑定、渲染管线、动画。
+whenToUse: **仅当用户明确提到 SilkyUI / SilkyUIFramework / silky-ui 时使用**（或项目已确认引用该框架）。
+  模组 UI 的默认方案是 tModLoader 原生 UI（见技能 terraria-mod-ui），不要主动把需求迁移到本框架。
+  本技能默认收在 skills/optional/ 下、不进入技能目录；启用方式：
+  `pwsh -File tools/skill-pack.ps1 -Name silky-ui-framework -Enable`。
 ---
 
 # SilkyUIFramework 使用指南

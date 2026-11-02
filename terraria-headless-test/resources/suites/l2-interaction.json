@@ -1,0 +1,53 @@
+{
+  "name": "l2-interaction",
+  "cases": [
+    {
+      "name": "inworld",
+      "commands": [
+        "c:waitfor inworld"
+      ],
+      "expectLog": [
+        "waitfor inworld ok"
+      ],
+      "timeout": 30
+    },
+    {
+      "name": "key_inject",
+      "commands": [
+        "c:key Inventory",
+        "c:wait 20"
+      ],
+      "expectLog": [
+        "key Inventory -> injected (focus-free)"
+      ],
+      "timeout": 20
+    },
+    {
+      "name": "mouse_move",
+      "commands": [
+        "c:mouse 300 200"
+      ],
+      "expectLog": [
+        "mouse -> "
+      ],
+      "timeout": 20
+    },
+    {
+      "name": "click",
+      "commands": [
+        "c:click left 300 200"
+      ],
+      "expectLog": [
+        "click left -> pressed"
+      ],
+      "timeout": 20
+    },
+    {
+      "name": "screenshot",
+      "commands": [
+        "c:wait 10"
+      ],
+      "shot": "l2suite"
+    }
+  ]
+}

@@ -1,0 +1,9 @@
+{
+  "name": "reset-player",
+  "description": "重置测试角色状态（位置/血量/增益）",
+  "params": [],
+  "commands": [
+    "c:playerreset",
+    "c:wait 5"
+  ]
+}

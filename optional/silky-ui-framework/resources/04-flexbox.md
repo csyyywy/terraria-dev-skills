@@ -147,3 +147,27 @@
 - `AutoFlow.Row/Column`。
 
 仓库 TODO 中 Grid 布局的「设计与实现」仍标记未完成，属实验性，优先用 Flexbox。
+
+
+## FlexGrow 不等于有尺寸（实测踩坑）
+
+**现象**：宝石页网格 `count=5`，数据正常，但整块面板全空。
+**证据**：网格 host 只设了 `FlexGrow = 1`、`FitWidth/FitHeight = false`，宽度算成 **0**；
+同项目的装备页显式设了 `Width = new Dimension(0, 1)`，正常显示。
+
+**铁律**：子容器放进"固定高度 / 百分比高度"的父级时，必须显式给主轴尺寸：
+
+```csharp
+// ❌ 只有 FlexGrow：父容器按百分比分配高度时，宽度会是 0
+new UIView { FlexGrow = 1f }
+
+// ✅ 显式百分比尺寸
+new UIView {
+    Width  = new Dimension(0f, 1f),
+    Height = new Dimension(0f, 1f),
+    FlexGrow = 1f,
+}
+```
+
+排查提示：把"空白页"和"能正常显示的同类页"做 diff，先比 `Width/Height` 再比内容——
+宽度为 0 时子元素全在画布外，看起来和"没画"一模一样。

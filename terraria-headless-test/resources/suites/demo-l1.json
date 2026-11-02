@@ -1,0 +1,42 @@
+{
+  "name": "demo-l1",
+  "cases": [
+    {
+      "name": "ping",
+      "commands": [
+        "s:ping"
+      ],
+      "expect": [
+        "ping"
+      ],
+      "timeout": 20
+    },
+    {
+      "name": "custom_verb",
+      "commands": [
+        "s:echo2 hello world"
+      ],
+      "expectLog": [
+        "echo2 args=echo2|hello|world"
+      ],
+      "timeout": 20
+    },
+    {
+      "name": "diag",
+      "commands": [
+        "s:diag"
+      ],
+      "timeout": 10
+    },
+    {
+      "name": "ping_again",
+      "commands": [
+        "s:ping"
+      ],
+      "expect": [
+        "ping"
+      ],
+      "timeout": 20
+    }
+  ]
+}

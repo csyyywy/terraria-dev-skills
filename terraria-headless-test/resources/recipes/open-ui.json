@@ -1,0 +1,11 @@
+{
+  "name": "open-ui",
+  "description": "打开界面并等待开启动画结束（约 20 帧）",
+  "params": [
+    "page"
+  ],
+  "commands": [
+    "c:ui {page}",
+    "c:wait 20"
+  ]
+}

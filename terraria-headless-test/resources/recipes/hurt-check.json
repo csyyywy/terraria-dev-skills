@@ -1,0 +1,12 @@
+{
+  "name": "hurt-check",
+  "description": "受伤但仍存活：受伤 → 等无敌帧 → 断言血量>0",
+  "params": [
+    "amount"
+  ],
+  "commands": [
+    "c:hurt {amount}",
+    "c:wait 120",
+    "s:assert hp>=1"
+  ]
+}

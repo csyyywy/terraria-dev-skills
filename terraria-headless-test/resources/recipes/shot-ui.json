@@ -1,0 +1,10 @@
+{
+  "name": "shot-ui",
+  "description": "截一张图（后缓冲，含 UI）",
+  "params": [
+    "name"
+  ],
+  "commands": [
+    "c:shot {name}"
+  ]
+}

@@ -22,21 +22,26 @@ namespace MyMod.Common.Testing
     public class SelfTestSystem : ModSystem
     {
         private static readonly Dictionary<string, Func<string>> Tests = new();
-        private string _root;
+        private string? _root;
         private int _consumed;
         private int _tick;
 
         /// <summary>Register a test case: body returns detail on success or throws on failure.</summary>
         public static void RegisterTest(string name, Func<string> body) => Tests[name] = body;
 
-        // Enabled only when launched by headless-test.ps1 (env var present).
-        public override bool IsLoadingEnabled(Mod mod)
-            => !string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MOD_TESTDIR"));
+        // 只有被 headless-test.ps1 拉起时才启用。两种变量名都认：
+        // MOD_TESTDIR（技能默认）与 <ModName>_TESTDIR（按模组名自定）。
+        private static string? GetRoot(Mod mod)
+            => Environment.GetEnvironmentVariable("MOD_TESTDIR")
+               ?? Environment.GetEnvironmentVariable(mod.Name + "_TESTDIR");
+
+        public override bool IsLoadingEnabled(Mod mod) => !string.IsNullOrEmpty(GetRoot(mod));
 
         public override void Load()
         {
-            _root = Environment.GetEnvironmentVariable("MOD_TESTDIR");
+            _root = GetRoot(Mod);
             if (_root == null) return;
+            Mod.Logger.Info("[SelfTest] bridge enabled root=" + _root + " dedServ=" + Main.dedServ);
 
             // ---- built-in smoke case ------------------------------------
             RegisterTest("ping", () => "pong");
@@ -51,15 +56,26 @@ namespace MyMod.Common.Testing
             // });
         }
 
+        // 世界载入后立刻跑一次：无头服务器**没有客户端时世界不更新**，
+        // PostUpdateWorld 永远不触发（实测：结果文件一直为空）。
+        public override void OnWorldLoad()
+        {
+            if (_root == null) return;
+            try { Pump(); }
+            catch { /* 保持服务器存活，错误留给下一轮 */ }
+        }
+
+        // 有客户端连入时世界才会 tick，这里作为补充轮询；无客户端时不依赖它。
         public override void PostUpdateWorld()
         {
-            if (_root == null || ++_tick % 30 != 0) return;   // poll ~2x/sec
+            if (_root == null || ++_tick % 30 != 0) return;
             try { Pump(); }
             catch { /* swallow: retry next tick keeps the server alive */ }
         }
 
         private void Pump()
         {
+            if (_root == null) return;
             var cmdFile = Path.Combine(_root, "in", "commands.txt");
             var resFile = Path.Combine(_root, "out", "results.txt");
             if (!File.Exists(cmdFile)) return;

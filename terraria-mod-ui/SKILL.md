@@ -1,14 +1,17 @@
 ---
 name: terraria-mod-ui
-description: Terraria（泰拉瑞亚）tModLoader 1.4.4 UI 开发与调试经验：绘制批次与坐标系（UIScaleMatrix / Main.Transform / screenPosition）、StyleDimension 参数陷阱、绘制钩子选型（PostDraw 在 1.4.4 不触发的坑）、角色画像渲染（spriteBuffer / SerializedClone）、血条与头顶标签跟随绘制、UIList 排序、调试探针方法论。
-whenToUse: 开发或修改 tModLoader 模组 UI（面板 / 窗口 / 画像 / 血条标签 / 头顶文字 / 世界内绘制），或排查"画了看不见 / 位置不对 / 钩子不触发"类问题时加载。
+description: tModLoader 1.4.4 原生 UI 与世界内绘制：绘制批次与坐标系、StyleDimension 参数顺序、绘制钩子选型（PostDraw 在 1.4.4 不触发）、角色画像渲染、血条与头顶标签、UIList 排序、探针调试。
+whenToUse: 写或改模组 UI（面板 / 窗口 / 画像 / 血条标签 / 世界内叠加），或排查"画了看不见 / 位置不对 / 钩子不触发"时加载。
 ---
 
 # tModLoader UI 开发与调试（1.4.4）
 
-> 经验来自实战模组（属性面板、词缀血条标签、画像渲染），均经过"踩坑 → 定位 → 修复"验证。
-
 环境：Terraria 1.4.4 + tModLoader 1.4.4 stable。查绘制链路前先看源码（`<TML_SRC>` = tModLoader 源码检出目录，含反编译 vanilla 与 1.4.4 patch）。
+
+> **默认方案：tModLoader 原生 UI。**
+> 本技能不依赖任何 UI 框架。只有当用户**明确点名 SilkyUI**，或项目已引用该框架时，
+> 才启用可选包：`pwsh -File tools/skill-pack.ps1 -Name silky-ui-framework -Enable`
+> （默认收在 `skills/optional/`，不进入技能目录，不会被自动选中）。
 
 ## 一句话流程
 
@@ -28,3 +31,5 @@ whenToUse: 开发或修改 tModLoader 模组 UI（面板 / 窗口 / 画像 / 血
 - `04-layout-pitfalls.md` 布局与控件坑——`StyleDimension` 参数顺序、`UIList` 乱序、`UIImage` 图标居中、缩放与像素对齐。
 - `05-debugging.md` 调试方法论——探针（日志 + 色块）区分"没触发"与"位置错"、`client.log` 定位、反射读 tML IL、崩溃恢复。
 - `06-text-labels.md` UI 文字与血条标签细节——描边文字、逐段配色、血条跟随定位、多行换行、每帧遍历 NPC。
+
+- `resources/07-draw-resources.md`：绘制资源与画布四条铁律（A/B/C 实测、两遍画、clamp、bbox、视角夹取）

@@ -1,0 +1,39 @@
+{
+  "name": "recipe-demo",
+  "cases": [
+    {
+      "name": "reset",
+      "recipe": "reset-player",
+      "expectLog": [
+        "test player config reset"
+      ]
+    },
+    {
+      "name": "open_ui",
+      "recipe": "open-ui",
+      "args": {
+        "page": "demo"
+      },
+      "expectLog": [
+        "ui demo -> opened"
+      ]
+    },
+    {
+      "name": "assert_open",
+      "commands": [
+        "s:ping"
+      ],
+      "expect": [
+        "ping"
+      ]
+    },
+    {
+      "name": "shot",
+      "recipe": "shot-ui",
+      "args": {
+        "name": "recipe-suite"
+      },
+      "shot": "recipe-suite"
+    }
+  ]
+}

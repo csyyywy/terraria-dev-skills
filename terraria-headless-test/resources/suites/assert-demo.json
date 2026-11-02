@@ -1,0 +1,41 @@
+{
+  "name": "assert-demo",
+  "cases": [
+    {
+      "name": "npc_count",
+      "commands": [
+        "s:assert npc>=0"
+      ],
+      "expect": [
+        "assert_npcgte0"
+      ]
+    },
+    {
+      "name": "players_count",
+      "commands": [
+        "s:assert players>=0"
+      ],
+      "expect": [
+        "assert_playersgte0"
+      ]
+    },
+    {
+      "name": "inventory_closed",
+      "commands": [
+        "s:assert inventory==false"
+      ],
+      "expect": [
+        "assert_inventoryeq0"
+      ]
+    },
+    {
+      "name": "hp_alive",
+      "commands": [
+        "s:assert hpmax>=20"
+      ],
+      "expect": [
+        "assert_hpmaxgte20"
+      ]
+    }
+  ]
+}

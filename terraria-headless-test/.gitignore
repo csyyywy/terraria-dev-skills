@@ -1,0 +1,10 @@
+# 运行产物（不要提交）
+labs/
+*.log
+*.partial
+.session.json
+out/
+
+# 本机配置
+*.local.json
+.env

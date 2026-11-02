@@ -1,7 +1,7 @@
 ---
 name: terraria-mod-dev
-description: Terraria（泰拉瑞亚）tModLoader 模组开发入口：环境与工程结构、构建/调试/发布流水线、tModLoader API 速查、本地化、网络同步、跨模组互操作、无头测试与常见错误排查。细节见 resources/ 分册。
-whenToUse: 开发或修改 tModLoader 模组，或需要查询 tModLoader API、构建、发布、排错时加载。
+description: tModLoader 模组开发入口：环境与工程结构、构建 / 调试 / 发布流水线、API 速查（六个分册）、本地化、网络同步、跨模组互操作、排错。自动化自测见技能 terraria-headless-test。
+whenToUse: 开发或修改 tModLoader 模组，或需要查 API、构建、发布、排错时加载。
 ---
 
 # Terraria 模组开发（tModLoader）
@@ -11,8 +11,8 @@ whenToUse: 开发或修改 tModLoader 模组，或需要查询 tModLoader API、
 
 ## 工作准则
 
-1. **不确定就问。** 机制、数值、设计取舍拿不准时先向用户确认，别靠反复试错硬推。
-2. **别猜引擎语义。** 原版行为（`realLife` 何时生效、鞭子标记是否自动、某个钩子跑在哪一端）以源码为准。凭印象写出的代码往往能编译能运行，但逻辑全错，还要等玩家反馈才暴露。
+1. **不确定就问。** 机制、数值、设计取舍拿不准时先确认，不要靠试错硬推。
+2. **不猜引擎语义。** 原版行为（`realLife` 何时生效、鞭子标记是否自动、钩子跑在哪一端）以源码为准——凭印象写出的代码能编译能运行，但逻辑是错的。
 
 反编译查看原版实现（`tModLoader.dll` 内嵌整个 Terraria，无需另找 Terraria.dll）：
 
@@ -39,10 +39,14 @@ ilspycmd -t Terraria.NPC "<TML_DIR>/tModLoader.dll" > npc.cs
 
 | 目的 | 命令 | 说明 |
 |---|---|---|
-| 只验证代码可编译 | `dotnet build -c Release -p:BuildMod=false` | 跳过打包，游戏开着也能跑，最快 |
-| 验证完整打包 | `dotnet build -c Release` | 需先关客户端 |
-| 构建 + hjson 校验 | `scripts/headless-test.ps1 -ProjectPath <csproj> -ModName <Mod>` | 默认只做这两步 |
-| 无头服务器加载测试 | 同上加 `-ValidateOnly:$false` | 会起服务器；出问题可先跳过 |
+| 构建 + hjson 校验 | `headless-test.ps1 -Mode Validate -ProjectPath <csproj> -ModName <Mod> -TmlDir <TML_DIR>` | 不启动服务器，几秒 |
+| 无头服务器跑用例 | 同上改为 `-Mode Server -ExpectCases ping,<case>` | 打包到临时目录，不必关游戏 |
+| 只看配置不启动 | 追加 `-PlanOnly` | 排查路径/参数最快的入口 |
+| 完整打包（发布用） | `dotnet build -c Release` | 写玩家 `Mods` 目录，需先关客户端 |
+
+`-p:BuildMod=false` 只编译不打包时，`tMLMod.targets` 不再设置 `TargetFramework`，
+而手动补 `-p:TargetFramework` 又会让 SDK 推断失败（NETSDK1013）——所以脚本改成"打包到临时目录"，
+既不碰玩家 `Mods`，产物还能直接给服务器用。
 
 确认锁文件的是不是客户端（别误杀进程）：命令行含 `-terrariasteamclient` 的 `dotnet.exe` 才是游戏客户端。
 
@@ -65,5 +69,5 @@ ilspycmd -t Terraria.NPC "<TML_DIR>/tModLoader.dll" > npc.cs
 - `09-links.md` · `10-official-reference.md` 官方资源导航
 - `11-armor-textures.md` 装备/盔甲贴图规格
 - `12-modconfig.md` ModConfig 配置系统
-- `13-headless-testing.md` 无头服务器自动化测试（配合 `scripts/headless-test.ps1`、`examples/SelfTestCommand.cs`）
+- `13-headless-testing.md` 无头服务器自动化测试（配合 `scripts/headless-test.ps1`、`examples/SelfTestCommand.cs`）；需要客户端截图与测试角色配置时用技能 `terraria-headless-test`
 - `templates/` 模板 · `examples/` 示例 · `scripts/` 脚本
