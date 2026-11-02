@@ -5,8 +5,6 @@
 
 > 关键词：headless、无头测试、tModLoader、自动化截图、UI 断言、CI 自测
 
-[![CI](https://github.com/csyyywy/terraria-dev-skills/actions/workflows/ci.yml/badge.svg)](https://github.com/csyyywy/terraria-dev-skills/actions/workflows/ci.yml)
-
 ---
 
 ## 它解决什么问题
@@ -135,7 +133,15 @@ docs/                     设计取舍（含被否决的方案与原因）
 
 ## 在 CI 里跑
 
-仓库自带两个工作流：
+工作流定义放在 `ci/workflows/`（`ci.yml`、`l2-selfhosted.yml`），一条命令安装到 `.github/workflows/`：
+
+```powershell
+pwsh -File tools/install-workflows.ps1 -Commit -Push
+```
+
+> 需要带 `workflow` 权限的凭据；否则 GitHub 会拒绝推送 `.github/workflows/*`（可用网页新建这两个文件，内容完全一致）。
+
+装好后有两个工作流：
 
 | 工作流 | 跑在哪 | 做什么 |
 |---|---|---|

@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  static-checks:
+    name: 静态检查（语法 / JSON / 文档引用 / 隐私）
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 检查所有技能
+        shell: pwsh
+        run: |
+          $checker = "terraria-headless-test/scripts/ci-check.ps1"
+          if (-not (Test-Path $checker)) { throw "找不到检查脚本：$checker" }
+          $skills = @(Get-ChildItem -Directory | Where-Object {
+            (Test-Path (Join-Path $_.FullName 'SKILL.md')) -or
+            (Test-Path (Join-Path $_.FullName 'optional'))
+          })
+          $failed = @()
+          foreach ($s in $skills) {
+            if ($s.Name -eq 'optional') {
+              Get-ChildItem $s.FullName -Directory | ForEach-Object {
+                Write-Host "=== optional/$($_.Name) ==="
+                pwsh -NoProfile -File $checker -SkillRoot $_.FullName
+                if ($LASTEXITCODE -ne 0) { $failed += "optional/$($_.Name)" }
+              }
+            } else {
+              if (-not (Test-Path (Join-Path $s.FullName 'SKILL.md'))) { continue }
+              Write-Host "=== $($s.Name) ==="
+              pwsh -NoProfile -File $checker -SkillRoot $s.FullName
+              if ($LASTEXITCODE -ne 0) { $failed += $s.Name }
+            }
+          }
+          if ($failed.Count -gt 0) { throw ("以下技能检查失败：" + ($failed -join ', ')) }
+          Write-Host "全部技能检查通过" -ForegroundColor Green
+
+      - name: 校验 workflow 自身语法
+        shell: pwsh
+        run: |
+          # 轻量校验：YAML 能被解析（避免推送坏掉的 workflow）
+          Add-Type -AssemblyName System.Runtime
+          foreach ($f in Get-ChildItem .github/workflows -Filter *.yml) {
+            $raw = Get-Content $f.FullName -Raw
+            if ($raw -notmatch '(?m)^name:') { throw "$($f.Name) 缺少 name" }
+            if ($raw -notmatch '(?m)^on:')   { throw "$($f.Name) 缺少 on" }
+            if ($raw -notmatch '(?m)^jobs:') { throw "$($f.Name) 缺少 jobs" }
+          }
+          Write-Host "workflow 文件基本结构正常"
+
+  docs-export:
+    name: 导出可公开副本（含隐私扫描）
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 运行导出脚本
+        shell: pwsh
+        run: |
+          # 仓库根就是技能集合，导出脚本按「有 tools/ 与技能目录」判断
+          if (Test-Path 'tools/export-oss.ps1') {
+            pwsh -NoProfile -File tools/export-oss.ps1 -Out "$env:RUNNER_TEMP/oss-check"
+            if ($LASTEXITCODE -ne 0) { throw "导出/隐私检查失败" }
+          } else {
+            Write-Host "无 tools/export-oss.ps1，跳过"
+          }

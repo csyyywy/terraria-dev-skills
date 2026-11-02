@@ -1,0 +1,99 @@
+name: L2 自测（self-hosted，需要 tModLoader 与 Steam）
+
+# 这个工作流不会在 GitHub 托管 runner 上跑：它需要真实安装的 tModLoader、
+# 已登录的 Steam，以及一个可用的 .tmod。请在一台自托管 Windows runner 上注册后触发。
+#
+# 注册 runner 后，在仓库 Settings → Variables 里配置：
+#   TML_DIR      tModLoader 安装目录（含 tModLoader.dll）
+#   TMOD_PATH    被测 .tmod 的绝对路径
+#   MOD_NAME     模组内部名
+# 可选：PLAYER_NAME  测试角色名（默认 TestPlayer）
+
+on:
+  workflow_dispatch:
+    inputs:
+      lab:
+        description: 'lab 名（留空用 ci-l2）'
+        required: false
+        default: 'ci-l2'
+      suite:
+        description: '要跑的 suite（留空跑 l2-interaction）'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  l2:
+    name: 起客户端 → 跑 suite → 收截图
+    runs-on: [ self-hosted, windows, tmodloader ]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 前置检查
+        shell: pwsh
+        env:
+          TML_DIR: ${{ vars.TML_DIR }}
+          TMOD_PATH: ${{ vars.TMOD_PATH }}
+        run: |
+          if (-not $env:TML_DIR)   { throw "缺少仓库变量 TML_DIR" }
+          if (-not (Test-Path (Join-Path $env:TML_DIR 'tModLoader.dll'))) { throw "TML_DIR 下没有 tModLoader.dll" }
+          if ($env:TMOD_PATH -and -not (Test-Path $env:TMOD_PATH)) { throw "TMOD_PATH 不存在：$env:TMOD_PATH" }
+          Write-Host "tModLoader: $env:TML_DIR"
+
+      - name: 体检（客户端能否走到 Finding Mods）
+        shell: pwsh
+        env:
+          TML_DIR: ${{ vars.TML_DIR }}
+        run: |
+          pwsh -NoProfile -File terraria-headless-test/resources/scripts/preflight-client.ps1 -TmlDir $env:TML_DIR -WaitSec 120
+
+      - name: L1 + L2 suite
+        shell: pwsh
+        env:
+          TML_DIR: ${{ vars.TML_DIR }}
+          TMOD_PATH: ${{ vars.TMOD_PATH }}
+          MOD_NAME: ${{ vars.MOD_NAME }}
+          PLAYER_NAME: ${{ vars.PLAYER_NAME }}
+        run: |
+          $lab = '${{ inputs.lab }}'; if (-not $lab) { $lab = 'ci-l2' }
+          $suite = '${{ inputs.suite }}'
+          if (-not $suite) { $suite = 'terraria-headless-test/resources/suites/l2-interaction.json' }
+          $player = if ($env:PLAYER_NAME) { $env:PLAYER_NAME } else { 'TestPlayer' }
+
+          pwsh -NoProfile -File terraria-headless-test/resources/scripts/tml.ps1 `
+            -Lab $lab -ModName $env:MOD_NAME -Tmod $env:TMOD_PATH -TmlDir $env:TML_DIR `
+            -Client -Player $player -MinimizeClient -Detach -MaxWaitSec 120
+          if ($LASTEXITCODE -ne 0) { throw "启动失败" }
+
+          # 就绪探测（不阻塞轮询）
+          $sw = [Diagnostics.Stopwatch]::StartNew()
+          do {
+            pwsh -NoProfile -File terraria-headless-test/resources/scripts/session.ps1 -Action Poll -Lab $lab | Out-Host
+            if ($LASTEXITCODE -eq 0) { break }
+            Start-Sleep -Seconds 10
+          } while ($sw.Elapsed.TotalMinutes -lt 10)
+
+          pwsh -NoProfile -File terraria-headless-test/resources/scripts/session.ps1 -Action Suite -Lab $lab -Suite $suite
+          if ($LASTEXITCODE -ne 0) { throw "suite 有失败用例" }
+
+      - name: 上传截图与日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: l2-artifacts
+          path: |
+            ${{ env.USERPROFILE }}/.tmlkit/labs/*/out/*.png
+            ${{ env.USERPROFILE }}/.tmlkit/labs/*/out/*.txt
+            ${{ env.USERPROFILE }}/.tmlkit/labs/*/out/*.log
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: 收工（停会话）
+        if: always()
+        shell: pwsh
+        run: |
+          $lab = '${{ inputs.lab }}'; if (-not $lab) { $lab = 'ci-l2' }
+          pwsh -NoProfile -File terraria-headless-test/resources/scripts/session.ps1 -Action Stop -Lab $lab
