@@ -52,32 +52,53 @@ if (Netplay.HasClients) Game.Update(...);   // 零客户端 → 世界不更新
 
 `shotstat` 的 `distinct`（颜色种类）与 `nonUniform`（非主导色占比）可以当“面板是不是空的”的断言，
 不用再靠人眼判断。
-## 快速开始
+## 快速开始（5 步）
 
 ```powershell
-# 0) 前置：tModLoader 安装目录（后面统一叫 <TML_DIR>）
-#    Windows / .NET 8 / PowerShell 7
+# 0) 前置：PowerShell 7、.NET 8、已安装 tModLoader（含 tModLoader.dll）
+#    L2 还要求 Steam 正在运行
+#    下文的 <TML_DIR> 指 tModLoader 安装目录，<你的模组> 指模组内部名
 
-# 1) L1：起服务器跑一条断言
-pwsh -File resources/scripts/tml.ps1 `
-  -Lab smoke -ModName <你的模组> -Tmod <path/to/YourMod.tmod> -TmlDir <TML_DIR> `
+# 1) 把桥加进你的模组工程（一行命令；手写相对路径很容易错，错了只会表现为“等不到心跳”）
+pwsh -File terraria-headless-test/scripts/add-bridge.ps1 -Csproj <你的模组>/<你的模组>.csproj
+
+# 2) 构建（用 tML 的 BuildMod 目标，产物是 .tmod）
+dotnet build <你的模组>/<你的模组>.csproj -c Debug `
+  -p:TMLDir="<TML_DIR>" -p:ExtraBuildModFlags="-tmlsavedirectory <输出目录>"
+
+# 3) L1：起服务器跑一条断言（无客户端，秒级）
+pwsh -File terraria-headless-test/resources/scripts/tml.ps1 `
+  -Lab smoke -ModName <你的模组> -Tmod <输出目录>/Mods/<你的模组>.tmod -TmlDir <TML_DIR> `
   -Commands 'ping' -Expect ping
 
-# 2) 热会话：起一次，之后反复下发
-pwsh -File resources/scripts/tml.ps1 -Lab dev -ModName <你的模组> -Tmod <...：.tmod> -TmlDir <TML_DIR> -Detach
-pwsh -File resources/scripts/session.ps1 -Action Poll -Lab dev        # 永不阻塞：ready / starting
-pwsh -File resources/scripts/session.ps1 -Action Run  -Lab dev -Commands 's:ping'
+# 4) 热会话：起一次，之后反复下发（单条约 1 秒）
+pwsh -File terraria-headless-test/resources/scripts/tml.ps1 -Lab dev -ModName <你的模组> `
+  -Tmod <...>/<你的模组>.tmod -TmlDir <TML_DIR> -Detach
+pwsh -File terraria-headless-test/resources/scripts/session.ps1 -Action Poll -Lab dev   # 不阻塞：ready / starting
+pwsh -File terraria-headless-test/resources/scripts/session.ps1 -Action Run  -Lab dev -Commands 's:ping'
 
-# 3) L2：带客户端，截图 + 像素断言
-pwsh -File resources/scripts/tml.ps1 -Lab ui -ModName <你的模组> -Tmod <...> -TmlDir <TML_DIR> `
-  -Client -Player TestPlayer -MinimizeClient -Detach
-pwsh -File resources/scripts/session.ps1 -Action Run -Lab ui `
-  -Commands 'c:ui inventory;c:wait 30;c:shot bag;c:assertpix 400 300 #ffffff 30'
+# 5) L2：带真实客户端，截图 + 像素断言
+pwsh -File terraria-headless-test/resources/scripts/tml.ps1 -Lab ui -ModName <你的模组> `
+  -Tmod <...>/<你的模组>.tmod -TmlDir <TML_DIR> -Client -Player TestPlayer -MinimizeClient -Detach
+pwsh -File terraria-headless-test/resources/scripts/session.ps1 -Action Suite -Lab ui `
+  -Suite terraria-headless-test/resources/suites/l2-interaction.json
 ```
 
 产物在 `~/.tmlkit/labs/<lab>/`：`out/*.png`、`out/log-*.txt`、`out/boot-*.log`、`.session.json`。
 
----
+**首次运行会比之后慢很多**：新 lab 要现生成世界（`-WorldGenSec` 默认 300 秒，期间会打印生成进度），
+L2 还要加载客户端与模组。第二次起就是热会话的秒级了。
+
+### 改完代码之后（顺序不能变）
+
+```powershell
+pwsh -File terraria-headless-test/resources/scripts/session.ps1 -Action Stop -Lab dev   # 1) 停会话，释放 .tmod 句柄
+dotnet build ...                                                                      # 2) 重新打包
+pwsh -File terraria-headless-test/resources/scripts/tml.ps1 ... -Detach                # 3) 重新起
+```
+
+漏掉第 1 步时，旧服务端会继续持有旧 `.tmod`，你会看到“改了没生效”。驱动现在会自动停旧会话，
+并打印 `tmod: mtime=… sha12=… age=…min` 与失败阈值（`age>30min` 直接失败，可用 `-AllowStaleTmod` 放行）。
 
 ## 关键设计（都是被坑出来的）
 

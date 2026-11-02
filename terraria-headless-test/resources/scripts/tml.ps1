@@ -46,12 +46,13 @@ param(
 	[string[]]$ExtraMods = @(),       # 额外依赖：.tmod 路径或目录（可多次传）
 	[string]$WorkshopContent = '',    # 工坊内容目录；空 = 自动推导 <steamapps>\workshop\content\1281930
 	[bool]$IsolatedWorkshop = $true,  # 把 -steamworkshopfolder 指到 lab 里的空目录：跳过创意工坊扫描（慢且与玩家环境耦合）
-	[bool]$Mute = $true,
-	[switch]$UseClientSaveDir,  # 客户端用独立存档目录（默认共用；共用是实测能起来的配置）             # 默认静音：音频设备用 dummy，音量归零（不打扰机器上其他程序）    # 只打印将要做什么（复制哪些 .tmod、起几个进程、投什么命令），不启动任何进程
+	[bool]$Mute = $true,        # 默认静音：音频设备用 dummy，音量归零（不打扰其他程序）
+	[switch]$UseClientSaveDir,  # 客户端用独立存档目录（默认共用；共用是实测能起来的配置）
+	[switch]$AllowStaleTmod,   # 允许跑 age>30min 的 .tmod（默认直接失败，防止拿旧包下结论）
+	[int]$MaxWaitSec = 30,      # 全局等待预算：脚本内任何等待都不会超过它（超了就返回 starting）
+	[int]$WorldGenSec = 300,   # 世界生成预算：首次进新 lab 会现生成世界，几十秒到几分钟都正常
+	[switch]$Reuse,            # 复用同 lab 已在运行的会话（默认会先停掉它）
 	[switch]$Detach,
-	[switch]$Reuse,
-	[switch]$AllowStaleTmod,   # 允许跑 age>30min 的 .tmod（默认直接失败，防止拿旧包下结论）    # 复用同 lab 已在运行的会话（默认会先停掉它，避免旧模组继续生效）
-	[int]$MaxWaitSec = 30,   # 全局等待预算：脚本内任何等待都不会超过它   # 硬上限：任何等待最多这么久，超了就返回“正在启动”           # 就绪后返回，进程常驻（配合 session.ps1 做热会话）
 	[switch]$StopSession,       # 只停掉该 lab 已常驻的会话
 	[bool]$LegacyEnv = $true   # 同时导出 MOD_TESTDIR 与 <ModName>_TESTDIR（旧桥迁移用；稳定后可 -LegacyEnv:$false）
 )
@@ -549,6 +550,27 @@ try {
 
 	# 启动期快失败：不等心跳，直接盯进程自己的输出（模组没加载也有话说）
 	$bootPath = Join-Path $OutDir 'boot-server.log'
+	# 日志基线：server.log / boot-server.log 都是追加写，只看本次启动之后的增量，
+	# 否则会把上一轮的错误当成本轮失败（实测把 4 秒失败误判成历史错误）。
+	$tmlLogPath = Join-Path (Join-Path $TmlDir 'tModLoader-Logs') 'server.log'
+	$tmlBase = if (Test-Path $tmlLogPath) { (Get-Item $tmlLogPath).Length } else { 0 }
+	$bootBase = if (Test-Path $bootPath) { (Get-Item $bootPath).Length } else { 0 }
+
+	function Read-NewText([string]$path, [int64]$base) {
+		if (-not (Test-Path $path)) { return '' }
+		try {
+			$f = [IO.File]::Open($path, 'Open', 'Read', 'ReadWrite')
+			try {
+				if ($f.Length -le $base) { return '' }
+				[void]$f.Seek($base, 'Begin')
+				$sr = New-Object IO.StreamReader($f)
+				$txt = $sr.ReadToEnd()
+				$sr.Dispose()
+				return $txt
+			} finally { $f.Dispose() }
+		} catch { return '' }
+	}
+
 	$bootPatterns = 'Missing mod|ModSortingException|Disabling Mod|Unable to access Steam Workshop|Select Language|Fatal Error|Please ensure Steam is logged in|只允许使用一次|Address already in use|Failed to load'
 	$bootDeadline = (Get-Date).AddSeconds([Math]::Min(120, [Math]::Max(10, $MaxWaitSec)))
 	$bootHit = $null
@@ -559,9 +581,18 @@ try {
 			$btxt = Get-Content $beatFile -Raw -ErrorAction SilentlyContinue
 			if ($btxt -match 'ms=(\d+)' -and (([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - [int64]$Matches[1]) -lt 3000)) { break }
 		}
-		if (Test-Path $bootPath) {
-			$hit = Select-String -Path $bootPath -Pattern $bootPatterns -ErrorAction SilentlyContinue | Select-Object -First 1
-			if ($hit) { $bootHit = $hit.Line.Trim(); break }
+		$newBoot = Read-NewText $bootPath $bootBase
+		if ($newBoot -and ($newBoot -match $bootPatterns)) {
+			$line1 = ($newBoot -split "`n" | Where-Object { $_ -match $bootPatterns } | Select-Object -First 1)
+			$bootHit = $line1.Trim(); break
+		}
+		# ★ 模组加载失败（命名空间/依赖/编译错误）只写进 tML 自己的 server.log，
+		#   不看这里就只能等到超时，且症状是无心跳。
+		$newTml = Read-NewText $tmlLogPath $tmlBase
+		$pat2 = 'An error occurred while loading|Namespace and Folder name do not match|Disabling Mod:|Missing mod:|Strong reference'
+		if ($newTml -and ($newTml -match $pat2)) {
+			$line2 = ($newTml -split "`n" | Where-Object { $_ -match $pat2 } | Select-Object -First 1)
+			$bootHit = ('tML: ' + $line2.Trim()); break
 		}
 		Start-Sleep -Milliseconds 400
 	}
@@ -571,12 +602,56 @@ try {
 		throw ('server 启动失败：' + $bootHit)
 	}
 
-	if (-not (Wait-Beat (Join-Path $OutDir 'heartbeat-server.txt') $serverProc ([Math]::Max(4, $MaxWaitSec * 2)) '服务器')) {
+	$beatFileS = Join-Path $OutDir 'heartbeat-server.txt'
+	$swReady = [Diagnostics.Stopwatch]::StartNew()
+	$swGen = [Diagnostics.Stopwatch]::StartNew()
+	$generating = $false
+	$serverReady = $false
+	while ($true) {
+		if ($serverProc.HasExited) { break }
+		if (Test-Path $beatFileS) {
+			$bt = Get-Content $beatFileS -Raw -ErrorAction SilentlyContinue
+			if ($bt -match 'ms=(\d+)' -and (([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - [int64]$Matches[1]) -lt 3000)) { $serverReady = $true; break }
+		}
+		# 生成世界是合法耗时：看到进度行就继续等，直到 WorldGenSec
+		if (Test-Path $bootPath) {
+			$genHit = Select-String -Path $bootPath -Pattern 'Generating world|Settling liquids|Adding grass|Placing|Gemstones|Bushes' -ErrorAction SilentlyContinue | Select-Object -Last 1
+			if ($genHit) {
+				$generating = $true
+				if ($swGen.Elapsed.TotalSeconds -gt $WorldGenSec) { break }
+				if (($swGen.Elapsed.TotalSeconds % 10) -lt 0.5) { Log ('世界生成中… ' + [int]$swGen.Elapsed.TotalSeconds + 's：' + $genHit.Line.Trim()) }
+				Start-Sleep -Milliseconds 500
+				continue
+			}
+		}
+		if ($swReady.Elapsed.TotalSeconds -gt ([Math]::Max(4, $MaxWaitSec * 2))) { break }
+		Start-Sleep -Milliseconds 400
+	}
+	if (-not $serverReady) {
 		if ($Detach) {
 			Save-Session
 			Log ('still starting after ' + $MaxWaitSec + 's（服务器还没心跳）：会话已保存，用 session.ps1 -Action Poll/Wait 再查')
 			exit 0
 		}
+		# 最常见的真因：模组里根本没编进桥（csproj 没包含 resources/bridge/*.cs），
+		# 表现就是永远没有心跳。这里直接把结论说出来，省一轮盲猜。
+		try {
+			Add-Type -AssemblyName System.IO.Compression.FileSystem -ErrorAction SilentlyContinue
+			$zip = [IO.Compression.ZipFile]::OpenRead($Tmod)
+			$dll = $zip.Entries | Where-Object { $_.Name -like '*.dll' } | Select-Object -First 1
+			if ($dll) {
+				$ms = New-Object IO.MemoryStream
+				$dll.Open().CopyTo($ms)
+				$ascii = [Text.Encoding]::ASCII.GetString($ms.ToArray())
+				if ($ascii -notmatch 'TmlKit') {
+					Log 'HINT: 这个 .tmod 里没有 TmlKit 桥 → 模组永远不会写心跳。'
+					Log 'HINT: 用 scripts/add-bridge.ps1 -Csproj <你的.csproj> 加上引用后重建，再跑一次。'
+				}
+			}
+			$zip.Dispose()
+		} catch { }
+
+		if ($generating) { Log ('世界生成超过 ' + $WorldGenSec + 's 仍未完成：加大 -WorldGenSec，或先手动生成一次世界再跑') }
 		throw '等不到服务器心跳'
 	}
 	Log 'server heartbeat alive'
