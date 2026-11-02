@@ -249,10 +249,23 @@ $sha = (Get-FileHash $Tmod -Algorithm SHA256).Hash.Substring(0, 12).ToLower()
 $ageMin = [Math]::Round(((Get-Date) - $tmodInfo.LastWriteTime).TotalMinutes, 1)
 Log ("mod: {0} <- {1}" -f $ModName, $Tmod)
 Log ("tmod: mtime={0:yyyy-MM-dd HH:mm:ss} size={1} sha12={2} age={3}min" -f $tmodInfo.LastWriteTime, $tmodInfo.Length, $sha, $ageMin)
-if ($ageMin -gt 30) {
-	$msg = ("这个 .tmod 已经 {0} 分钟没更新（mtime={1:HH:mm:ss}）：多半是打包没成功（句柄被占用时 tML 打印 Packaging 却不落盘），跑下去等于拿旧包下结论" -f $ageMin, $tmodInfo.LastWriteTime)
-	if ($AllowStaleTmod) { Log ("WARN " + $msg + "（-AllowStaleTmod 已放行）") }
-	else { throw ($msg + "。确认打包成功后重跑；确有需要加 -AllowStaleTmod") }
+# 陈旧判断：只有“源码比包新”才算问题（说明忘了重新打包）；没给工程目录时只提示不拦。
+# 之前按固定 30 分钟硬失败，会把刻意保留的旧包也挡掉，属于过度设计。
+$srcNewer = $false
+$srcPath = if ($ModDir) { $ModDir } elseif ($ProjectPath) { Split-Path -Parent $ProjectPath } else { '' }
+if ($srcPath -and (Test-Path $srcPath)) {
+	$newestSrc = Get-ChildItem $srcPath -Recurse -File -ErrorAction SilentlyContinue |
+		Where-Object { $_.Extension -in @('.cs', '.png', '.hjson', '.txt', '.fx', '.ogg', '.wav') -and $_.FullName -notmatch '\\(bin|obj)\\' } |
+		Sort-Object LastWriteTime -Descending | Select-Object -First 1
+	if ($newestSrc -and $newestSrc.LastWriteTime -gt $tmodInfo.LastWriteTime) {
+		$srcNewer = $true
+		if (-not $AllowStaleTmod) {
+			throw ('源码比 .tmod 新（源码 {0:HH:mm} > 包 {1:HH:mm}，最新：{2}）。先重新打包，或加 -AllowStaleTmod 明知故跑。' -f $newestSrc.LastWriteTime, $tmodInfo.LastWriteTime, $newestSrc.Name)
+		}
+	}
+}
+if (-not $srcNewer -and $ageMin -gt 60) {
+	Log ('WARN 这个 .tmod 已经 {0} 分钟没更新，但没发现更新的源码：如果刚改过代码，确认打包真的落盘了' -f $ageMin)
 }
 
 # ── 1b. 依赖（modReferences）：不补就会 ModSortingException: Missing mod ──
@@ -274,7 +287,17 @@ if (-not $WorkshopContent) {
 	if (Test-Path $cand) { $WorkshopContent = $cand }
 }
 $sources = @()
-foreach ($m in $ExtraMods) { if ($m) { $sources += $m } }
+$forcedMods = @()
+foreach ($m in $ExtraMods) {
+	if (-not $m) { continue }
+	if ((Test-Path $m -PathType Leaf) -and ($m -like '*.tmod')) {
+		# 语义：传给 -ExtraMods 的 .tmod 文件 = 直接装进 lab 并启用（不只是搜索目录）
+		$n = [IO.Path]::GetFileNameWithoutExtension($m)
+		Copy-Item $m (Join-Path $ModsDir ($n + '.tmod')) -Force
+		$forcedMods += $n
+		Log ("extra: {0} <- {1}" -f $n, $m)
+	} else { $sources += $m }
+}
 $playerMods = Join-Path $env:USERPROFILE 'Documents\My Games\Terraria\tModLoader\Mods'
 if (Test-Path $playerMods) { $sources += $playerMods }
 if ($WorkshopContent -and (Test-Path $WorkshopContent)) { $sources += $WorkshopContent }
@@ -297,9 +320,15 @@ if ($missing.Count -gt 0) {
 		' 处理：加 -ExtraMods <路径>，或把依赖装进玩家 Mods，或确认工坊里确实有。')
 }
 
-$enabledMods = @($ModName) + @($refs | Where-Object { $_ -and $_ -ne $ModName })
-Set-Content (Join-Path $ModsDir 'enabled.json') (ConvertTo-Json -InputObject $enabledMods -Compress) -Encoding utf8
+if (-not $ModName) { $ModName = [IO.Path]::GetFileNameWithoutExtension($Tmod) }
+$enabledMods = @(@($ModName) + @($forcedMods) + @($refs | Where-Object { $_ -and $_ -ne $ModName }) | Select-Object -Unique)
+# 数组包裹是关键：单元素时 ConvertTo-Json 会塌缩成裸字符串 "Name"，tML 解析失败会清成 []；
+# 但不要用 -AsArray，它会把数组再包一层变成 [["Name"]]（实测被 tML 拒绝）。
+Set-Content (Join-Path $ModsDir 'enabled.json') (ConvertTo-Json -InputObject @($enabledMods) -Compress) -Encoding utf8
 Log ('enable: ' + ($enabledMods -join ','))
+if (-not ($enabledMods -contains $ModName)) {
+	throw ('内部错误：enabled.json 不含被测模组（ModName=' + $ModName + '，实际=' + ($enabledMods -join ',') + '）。请把这条连同命令一起报出来。')
+}
 
 # ── 2. 世界 ─────────────────────────────────────────────────
 $autoCreate = $false
@@ -576,15 +605,28 @@ try {
 	}
 	$Port = Select-FreePort $Port
 	$srvArgs = ('"{0}\tModLoader.dll" -server -config "{1}" -tmlsavedirectory "{2}" -modpath "{3}"{4}' -f $TmlDir, (Join-Path $LabRoot 'serverconfig.txt'), $SaveDir, $ModsDir, $wsArg)
+	$runStart = (Get-Date).AddSeconds(-2)   # 日志按时间过滤：只看本次启动之后的输出
 	$serverProc = Start-Game $srvArgs 'server' (Join-Path $OutDir 'boot-server.log')
 
-	# 启动期快失败：不等心跳，直接盯进程自己的输出（模组没加载也有话说）
+	# ── 就绪判定（统一一个循环：心跳 / 失败信号 / 世界生成） ────────
+	# 日志不按字节基线，而是按**时间**过滤：tML 会轮转 server*.log，按行长度对不上。
 	$bootPath = Join-Path $OutDir 'boot-server.log'
-	# 日志基线：server.log / boot-server.log 都是追加写，只看本次启动之后的增量，
-	# 否则会把上一轮的错误当成本轮失败（实测把 4 秒失败误判成历史错误）。
-	$tmlLogPath = Join-Path (Join-Path $TmlDir 'tModLoader-Logs') 'server.log'
-	$tmlBase = if (Test-Path $tmlLogPath) { (Get-Item $tmlLogPath).Length } else { 0 }
-	$bootBase = if (Test-Path $bootPath) { (Get-Item $bootPath).Length } else { 0 }
+	$tmlLogDir = Join-Path $TmlDir 'tModLoader-Logs'
+
+	function Get-NewestServerLog {
+		# 同一台机器上可能还跑着用户自己的 tML（同一安装目录、同一日志目录），
+		# 所以不能只按“最新”挑：必须确认这份日志提到本 lab 的路径。
+		if (-not (Test-Path $tmlLogDir)) { return $null }
+		$cands = @(Get-ChildItem $tmlLogDir -Filter 'server*.log' -File -ErrorAction SilentlyContinue |
+			Where-Object { $_.LastWriteTime -ge $runStart } | Sort-Object LastWriteTime -Descending)
+		foreach ($c in $cands) {
+			try {
+				$head = Get-Content $c.FullName -TotalCount 60 -ErrorAction SilentlyContinue
+				if (($head -join "`n") -match [regex]::Escape($LabRoot)) { return $c.FullName }
+			} catch { }
+		}
+		return $null
+	}
 
 	function Read-NewText([string]$path, [int64]$base) {
 		if (-not (Test-Path $path)) { return '' }
@@ -601,61 +643,81 @@ try {
 		} catch { return '' }
 	}
 
-	$bootPatterns = 'Missing mod|ModSortingException|Disabling Mod|Unable to access Steam Workshop|Select Language|Fatal Error|Please ensure Steam is logged in|只允许使用一次|Address already in use|Failed to load'
-	$bootDeadline = (Get-Date).AddSeconds([Math]::Min(120, [Math]::Max(10, $MaxWaitSec)))
-	$bootHit = $null
-	while ((Get-Date) -lt $bootDeadline) {
-		if ($serverProc.HasExited) { break }
-		$beatFile = Join-Path $OutDir 'heartbeat-server.txt'
-		if (Test-Path $beatFile) {
-			$btxt = Get-Content $beatFile -Raw -ErrorAction SilentlyContinue
-			if ($btxt -match 'ms=(\d+)' -and (([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - [int64]$Matches[1]) -lt 3000)) { break }
+	# boot 日志是我们自己重定向出来的文件：按字节增量最可靠（生成进度行没有时间戳）
+	$bootBase = if (Test-Path $bootPath) { (Get-Item $bootPath).Length } else { 0 }
+
+	function Get-LogLinesSince([string]$path, [datetime]$since) {
+		if (-not $path -or -not (Test-Path $path)) { return @() }
+		$raw = @()
+		try { $raw = Get-Content $path -Tail 600 -ErrorAction SilentlyContinue } catch { return @() }
+		$kept = @()
+		foreach ($l in $raw) {
+			if ($l -match '^\[(\d{2}):(\d{2}):(\d{2})') {
+				$hh = [int]$Matches[1]; $mm = [int]$Matches[2]; $ss = [int]$Matches[3]
+				$t = $since.Date.AddHours($hh).AddMinutes($mm).AddSeconds($ss)
+				if ($t -lt $since.AddHours(-12)) { $t = $t.AddDays(1) }   # 跨午夜
+				if ($t -ge $since) { $kept += $l }
+			}
 		}
-		$newBoot = Read-NewText $bootPath $bootBase
-		if ($newBoot -and ($newBoot -match $bootPatterns)) {
-			$line1 = ($newBoot -split "`n" | Where-Object { $_ -match $bootPatterns } | Select-Object -First 1)
-			$bootHit = $line1.Trim(); break
-		}
-		# ★ 模组加载失败（命名空间/依赖/编译错误）只写进 tML 自己的 server.log，
-		#   不看这里就只能等到超时，且症状是无心跳。
-		$newTml = Read-NewText $tmlLogPath $tmlBase
-		$pat2 = 'An error occurred while loading|Namespace and Folder name do not match|Disabling Mod:|Missing mod:|Strong reference'
-		if ($newTml -and ($newTml -match $pat2)) {
-			$line2 = ($newTml -split "`n" | Where-Object { $_ -match $pat2 } | Select-Object -First 1)
-			$bootHit = ('tML: ' + $line2.Trim()); break
-		}
-		Start-Sleep -Milliseconds 400
+		return $kept
 	}
-	if ($bootHit) {
-		Log ('启动期失败信号：' + $bootHit)
-		if (Test-Path $bootPath) { Get-Content $bootPath -Tail 20 | ForEach-Object { Log ('  boot| ' + $_) } }
-		throw ('server 启动失败：' + $bootHit)
-	}
+
+	$bootPatterns = 'Missing mod|ModSortingException|Disabling Mod|Unable to access Steam Workshop|Select Language|Fatal Error|Please ensure Steam is logged in|只允许使用一次|Address already in use|Failed to load|is malformed and failed to load|Namespace and Folder name do not match|An error occurred while loading'
+	$loadPatterns = 'An error occurred while loading|Namespace and Folder name do not match|Missing mod:|is malformed and failed to load'
+	$genPatterns  = 'Generating world|Settling liquids|Adding grass|Placing|Gemstones|Bushes'
 
 	$beatFileS = Join-Path $OutDir 'heartbeat-server.txt'
 	$swReady = [Diagnostics.Stopwatch]::StartNew()
 	$swGen = [Diagnostics.Stopwatch]::StartNew()
-	$generating = $false
 	$serverReady = $false
+	$bootHit = $null
+	$generating = $false
+	$lastGenLog = -1
+
 	while ($true) {
 		if ($serverProc.HasExited) { break }
 		if (Test-Path $beatFileS) {
 			$bt = Get-Content $beatFileS -Raw -ErrorAction SilentlyContinue
 			if ($bt -match 'ms=(\d+)' -and (([DateTimeOffset]::UtcNow.ToUnixTimeMilliseconds() - [int64]$Matches[1]) -lt 3000)) { $serverReady = $true; break }
 		}
-		# 生成世界是合法耗时：看到进度行就继续等，直到 WorldGenSec
-		if (Test-Path $bootPath) {
-			$genHit = Select-String -Path $bootPath -Pattern 'Generating world|Settling liquids|Adding grass|Placing|Gemstones|Bushes' -ErrorAction SilentlyContinue | Select-Object -Last 1
-			if ($genHit) {
-				$generating = $true
-				if ($swGen.Elapsed.TotalSeconds -gt $WorldGenSec) { break }
-				if (($swGen.Elapsed.TotalSeconds % 10) -lt 0.5) { Log ('世界生成中… ' + [int]$swGen.Elapsed.TotalSeconds + 's：' + $genHit.Line.Trim()) }
-				Start-Sleep -Milliseconds 500
-				continue
+
+		# 1) 进程自己的输出 + tML 自己的日志：模组加载失败只写后者
+		$bootLines = @((Read-NewText $bootPath $bootBase) -split "`n" | Where-Object { $_.Trim() })
+		$ownLog = Get-NewestServerLog
+		$tmlLines  = if ($ownLog) { Get-LogLinesSince $ownLog $runStart } else { @() }
+		$hit1 = $bootLines | Where-Object { $_ -match $bootPatterns } | Select-Object -First 1
+		$hit2 = $tmlLines  | Where-Object { $_ -match $loadPatterns } | Select-Object -First 1
+		if ($hit1) { $bootHit = $hit1.Trim(); break }
+		if ($hit2) {
+			$bootHit = ('tML: ' + $hit2.Trim())
+			# 把紧随其后的异常详情也带出来（不然只知道“加载失败”，不知道哪一行）
+			$idx = [array]::IndexOf($tmlLines, $hit2)
+			if ($idx -ge 0) {
+				$detail = @($tmlLines[($idx + 1)..([Math]::Min($idx + 8, $tmlLines.Count - 1))] | Where-Object { $_ -match 'ERROR|Exception|malformed|at line|System\.|->' })
+				if ($detail.Count -gt 0) { Log ('  细节: ' + (($detail -join ' / ').Trim() -replace '\s+', ' ')) }
 			}
+			break
 		}
+
+		# 2) 世界生成是合法耗时：看到进度就继续等，直到 WorldGenSec
+		$genHit = $bootLines | Where-Object { $_ -match $genPatterns } | Select-Object -Last 1
+		if ($genHit) {
+			$generating = $true
+			if ($swGen.Elapsed.TotalSeconds -gt $WorldGenSec) { break }
+			$sec = [int]$swGen.Elapsed.TotalSeconds
+			if ($sec -ge $lastGenLog + 15) { $lastGenLog = $sec; Log ('世界生成中… ' + $sec + 's：' + $genHit.Trim()) }
+			Start-Sleep -Milliseconds 500
+			continue
+		}
+
 		if ($swReady.Elapsed.TotalSeconds -gt ([Math]::Max(4, $MaxWaitSec * 2))) { break }
 		Start-Sleep -Milliseconds 400
+	}
+
+	if ($bootHit) {
+		Log ('启动期失败信号：' + $bootHit)
+		if (Test-Path $bootPath) { Get-Content $bootPath -Tail 15 | ForEach-Object { Log ('  boot| ' + $_) } }
+		throw ('server 启动失败：' + $bootHit)
 	}
 	if (-not $serverReady) {
 		if ($Detach) {
@@ -681,7 +743,7 @@ try {
 			$zip.Dispose()
 		} catch { }
 
-		if ($generating) { Log ('世界生成超过 ' + $WorldGenSec + 's 仍未完成：加大 -WorldGenSec，或先手动生成一次世界再跑') }
+		if ($generating -and $swGen.Elapsed.TotalSeconds -ge $WorldGenSec) { Log ('世界生成超过 ' + $WorldGenSec + 's 仍未完成：加大 -WorldGenSec，或先手动生成一次世界再跑') }
 		throw '等不到服务器心跳'
 	}
 	Log 'server heartbeat alive'
@@ -798,7 +860,34 @@ try {
 	}
 }
 catch {
-	Dump-OnFailure $_.Exception.Message
+	$errMsg = $_.Exception.Message
+	Dump-OnFailure $errMsg
+
+	# 只给了 -Tmod（没有 build.txt 可读）时依赖无从得知：启动期报 Missing mod 就地补一次再重试。
+	if ($errMsg -match 'Missing mod:\s*([A-Za-z0-9_\.]+)') {
+		$needDep = $Matches[1]
+		$lookIn = @() + $ExtraMods
+		$pm = Join-Path $env:USERPROFILE 'Documents\My Games\Terraria\tModLoader\Mods'
+		if (Test-Path $pm) { $lookIn += $pm }
+		if ($WorkshopContent -and (Test-Path $WorkshopContent)) { $lookIn += $WorkshopContent }
+		$depPath = $null
+		foreach ($src in $lookIn) {
+			if (-not $src -or -not (Test-Path $src)) { continue }
+			if (Test-Path $src -PathType Leaf) { if ([IO.Path]::GetFileNameWithoutExtension($src) -eq $needDep) { $depPath = $src; break } ; continue }
+			$hit = Get-ChildItem $src -Filter ($needDep + '.tmod') -Recurse -File -ErrorAction SilentlyContinue | Select-Object -First 1
+			if ($hit) { $depPath = $hit.FullName; break }
+		}
+		if ($depPath -and -not $env:TMLKIT_NO_AUTORETRY) {
+			Log ('依赖缺失 → 自动补 ' + $needDep + ' 并重试一次：' + $depPath)
+			$retryArgs = @{}
+			foreach ($kv in $PSBoundParameters.GetEnumerator()) { $retryArgs[$kv.Key] = $kv.Value }
+			$retryArgs['ExtraMods'] = @($ExtraMods) + @($depPath)
+			$retryArgs['AllowStaleTmod'] = $true   # 同一次调用内不重复拦陈旧
+			$env:TMLKIT_NO_AUTORETRY = '1'
+			& $PSCommandPath @retryArgs
+			exit $LASTEXITCODE
+		}
+	}
 	throw
 }
 finally {
