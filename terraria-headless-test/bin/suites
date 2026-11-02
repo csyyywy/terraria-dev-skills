@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# 并行跑多个 suite（git bash / WSL）
+#   ./bin/suites -Suite demo-l1,assert-demo -Parallel 2 -ModName MyMod -Tmod /path/MyMod.tmod -TmlDir /path/tModLoader
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec pwsh -NoProfile -File "$here/../resources/scripts/suites.ps1" "$@"

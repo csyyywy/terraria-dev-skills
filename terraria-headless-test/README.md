@@ -52,6 +52,32 @@ if (Netplay.HasClients) Game.Update(...);   // 零客户端 → 世界不更新
 
 `shotstat` 的 `distinct`（颜色种类）与 `nonUniform`（非主导色占比）可以当“面板是不是空的”的断言，
 不用再靠人眼判断。
+## 在哪个 shell 里跑？
+
+**脚本本体是 PowerShell，但你不必待在 PowerShell 里。** 从 git bash、cmd、WSL 都能调，
+区别只是怎么把参数交给 `pwsh`：
+
+| 你的 shell | 怎么调 |
+|---|---|
+| git bash / WSL / MSYS | `./bin/tml -Lab smoke ...`（仓库自带包装器，直接透传） |
+| git bash（手写） | `pwsh -NoProfile -File terraria-headless-test/resources/scripts/tml.ps1 -Lab smoke ...` |
+| PowerShell 7 | `pwsh -File .\terraria-headless-test\resources\scripts\tml.ps1 -Lab smoke ...` |
+| cmd.exe | `pwsh -NoProfile -File terraria-headless-test\resources\scripts\tml.ps1 -Lab smoke ...` |
+
+`bin/` 下的三个包装器对应三个脚本：`bin/tml`、`bin/session`、`bin/suites`。
+
+**要求是 PowerShell 7+（`pwsh`），不是 Windows PowerShell 5.1。** 脚本用到 .NET Core 的 API
+（`[IO.Path]::GetRelativePath`、`ConvertFrom-Json` 的行为等），5.1 会直接报错。
+安装：`winget install Microsoft.PowerShell`。
+
+```bash
+# git bash 里最小验证（不需要 Steam，L1 就够）
+./bin/tml -Lab smoke -ModName <你的模组> -Tmod /d/path/YourMod.tmod \
+  -TmlDir '/e/SteamLibrary/steamapps/common/tModLoader' -Commands 'ping' -Expect ping
+```
+
+> 路径写法：git bash 会把 `/d/...` 这类自动转成 `D:\...`（已实测），一般不用管；
+> 万一某条路径没被转换，改成 Windows 形式并加引号即可（`-TmlDir 'D:\tModLoader'`）。
 ## 快速开始（5 步）
 
 ```powershell
@@ -180,7 +206,8 @@ pwsh -File scripts/ci-check.ps1 -SkillRoot ../其他技能  # 检查别的技能
 它只做一件事：**让你在 PR 里看到真实截图**，而不是“我这边能跑”。
 ## 前置与限制
 
-- Windows + PowerShell 7 + .NET 8；tModLoader **1.4.4**（API 随版本变动，其他版本未验证）。
+- Windows + **PowerShell 7+**（不是 5.1）+ .NET 8；tModLoader **1.4.4**（API 随版本变动，其他版本未验证）。
+- 可以从任意 shell 调用：git bash 用 `./bin/tml`，见上节。
 - L2 需要 **Steam 正在运行**，且客户端要有完整 `config.json`（仓库内模板已可用）。
 - 不修改游戏文件、不注入宿主进程、不读内存；全部通过公开 API 与文件通信。
 - 不附带任何 Terraria 素材（贴图/音效/世界）；测试世界由服务端 `autocreate` 现场生成。

@@ -1,0 +1,16 @@
+#!/usr/bin/env bash
+# git bash / WSL / Linux 下的入口：直接透传给 PowerShell 驱动。
+# 用法与 PowerShell 版完全一致，例如：
+#   ./bin/tml -Lab smoke -ModName MyMod -Tmod /path/MyMod.tmod -TmlDir /path/tModLoader -Commands 'ping' -Expect ping
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+if command -v pwsh >/dev/null 2>&1; then
+  exec pwsh -NoProfile -File "$here/../resources/scripts/tml.ps1" "$@"
+elif command -v powershell.exe >/dev/null 2>&1; then
+  echo "需要 PowerShell 7+（脚本用到 .NET Core API，Windows PowerShell 5.1 不行）" >&2
+  echo "安装：winget install Microsoft.PowerShell" >&2
+  exit 2
+else
+  echo "找不到 pwsh。安装 PowerShell 7+：https://aka.ms/powershell" >&2
+  exit 2
+fi

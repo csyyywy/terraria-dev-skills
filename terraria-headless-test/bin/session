@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# 热会话入口（git bash / WSL）：Run / Suite / Poll / Wait / Status / Stop
+#   ./bin/session -Action Poll -Lab smoke
+set -euo pipefail
+here="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+exec pwsh -NoProfile -File "$here/../resources/scripts/session.ps1" "$@"
