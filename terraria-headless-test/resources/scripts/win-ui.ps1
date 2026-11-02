@@ -21,6 +21,7 @@ param(
 	[int]$Y = -1,
 	[string]$Keys = '',
 	[string]$Button = 'left',
+	[switch]$Focus,      # 明确要求把窗口拉到前台（默认不抢焦点）
 	[switch]$NoFocus
 )
 
@@ -80,10 +81,17 @@ if ($target.Count -eq 0) { Write-Error "找不到标题匹配 '$Title' 的窗口
 $win = $target[0]
 Write-Host ("target: pid={0} name={1} title='{2}'" -f $win.Pid, $win.Name, $win.Title)
 
-if (-not $NoFocus) {
+# 默认不动焦点：截图走 PrintWindow，被遮挡也能拍，没必要把窗口拉到前台。
+# 只有显式 -Focus，或 -Action Key（SendKeys 必须有前台焦点）时才激活。
+$needFocus = ($Focus -or $Action -eq 'Key') -and (-not $NoFocus)
+if ($needFocus) {
 	if ([WinUi.Native]::IsIconic($win.Handle)) { [void][WinUi.Native]::ShowWindow($win.Handle, 9) }   # SW_RESTORE
 	[void][WinUi.Native]::SetForegroundWindow($win.Handle)
 	Start-Sleep -Milliseconds 250
+} elseif ([WinUi.Native]::IsIconic($win.Handle)) {
+	# 最小化时 PrintWindow 拍不到内容：还原但不激活
+	[void][WinUi.Native]::ShowWindow($win.Handle, 4)   # 4 = SW_SHOWNOACTIVATE
+	Start-Sleep -Milliseconds 120
 }
 
 $rect = New-Object WinUi.Native+RECT

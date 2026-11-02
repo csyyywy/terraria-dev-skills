@@ -65,6 +65,22 @@ $Expect = @($Expect | ForEach-Object { $_ -split ',' } | Where-Object { $_ -and 
 $sw = [Diagnostics.Stopwatch]::StartNew()
 function Log($m) { Write-Host ('[{0,5}s] {1}' -f [int]$sw.Elapsed.TotalSeconds, $m) }
 
+# 会话落盘（tml.ps1 里曾有三处调用 Save-Session 但**从没定义过**，
+# 一旦走到"服务器没心跳 / 超时"分支就抛 CommandNotFound，把整个启动流程打断。
+# 这里补上唯一定义，三处调用都走它。）
+function Save-Session {
+    try {
+        $sess = [PSCustomObject]@{
+            lab = $script:Lab; labRoot = $script:LabRoot; port = $script:Port;
+            serverPid = if ($script:serverProc) { $script:serverProc.Id } else { 0 };
+            clientPid = if ($script:clientProc) { $script:clientProc.Id } else { 0 };
+            startedAt = (Get-Date).ToString('o'); client = [bool]$script:Client
+        }
+        $sess | ConvertTo-Json | Set-Content (Join-Path $script:LabRoot '.session.json') -Encoding utf8
+        Log ('session saved -> ' + (Join-Path $script:LabRoot '.session.json'))
+    } catch { Log ('session save failed: ' + $_.Exception.Message) }
+}
+
 function Test-PortFree([int]$p) {
 	# 用 netstat 判定：tML 绑 0.0.0.0 且 Windows 允许地址复用，纯 bind 测试会误判为空闲
 	$hit = (& netstat -ano -p TCP | Select-String -SimpleMatch (":" + $p)) 2>$null
@@ -395,7 +411,7 @@ function Start-Game([string]$CmdArgs, [string]$Tag, [string]$BootLog = '') {
 		$env:TMLKIT_ROOT = $LabRoot
 		if ($Mute) { $env:SDL_AUDIODRIVER = 'dummy'; $env:TMLKIT_MUTE = '1' }
 		if ($LegacyEnv) { $env:MOD_TESTDIR = $LabRoot; if ($ModName) { Set-Item -Path ("env:" + $ModName + "_TESTDIR") -Value $LabRoot } }
-		$dp = Start-Process -FilePath $DotNet -ArgumentList $CmdArgs -WorkingDirectory $TmlDir -PassThru
+		$dp = Start-Process -FilePath $DotNet -ArgumentList $CmdArgs -WorkingDirectory $TmlDir -PassThru -WindowStyle Hidden
 		Log "$Tag pid=$($dp.Id) (detached)"
 		return $dp
 	}
@@ -713,7 +729,7 @@ try {
 			try {
 				$winui = Join-Path $PSScriptRoot 'win-ui.ps1'
 				$cap = Join-Path $OutDir 'client-failure.png'
-				& pwsh -NoProfile -File $winui -Action Shot -NoFocus -Out $cap 2>$null | Out-Null
+				$null = Start-Process -FilePath 'pwsh' -ArgumentList @('-NoProfile','-File',$winui,'-Action','Shot','-NoFocus','-Out',$cap) -WindowStyle Hidden -Wait -ErrorAction SilentlyContinue
 				if (Test-Path $cap) { Log ('失败截图：' + $cap) }
 			} catch { }
 			if (Test-Path $cboot) { Get-Content $cboot -Tail 15 | ForEach-Object { Log ('  boot| ' + $_) } }
@@ -730,12 +746,21 @@ try {
 		}
 		Log 'client heartbeat alive'
 		if ($MinimizeClient) {
-			$clientProc.Refresh()
-			if ($clientProc.MainWindowHandle -ne [IntPtr]::Zero) {
-				Add-Type -Name W -Namespace TmlKit -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c);' -ErrorAction SilentlyContinue
-				[void][TmlKit.W]::ShowWindow($clientProc.MainWindowHandle, 6)   # 6 = SW_MINIMIZE
-				Log 'client window minimized（key 走进程内注入，不需要焦点）'
+			# 客户端建窗那一下会抢焦点，之后还可能自己复原；盯 4 秒反复压下去（SW_MINIMIZE 不激活窗口）
+			Add-Type -Name W -Namespace TmlKit -MemberDefinition '[DllImport("user32.dll")] public static extern bool ShowWindow(IntPtr h, int c); [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);' -ErrorAction SilentlyContinue
+			$mw = [Diagnostics.Stopwatch]::StartNew()
+			$pressed = 0
+			while ($mw.Elapsed.TotalSeconds -lt 4) {
+				$clientProc.Refresh()
+				$h = $clientProc.MainWindowHandle
+				if ($h -ne [IntPtr]::Zero -and -not [TmlKit.W]::IsIconic($h)) {
+					[void][TmlKit.W]::ShowWindow($h, 6)   # 6 = SW_MINIMIZE，不抢焦点
+					$pressed++
+				}
+				$sleepMs = if ($mw.Elapsed.TotalSeconds -lt 1.5) { 100 } else { 300 }
+				Start-Sleep -Milliseconds $sleepMs
 			}
+			if ($pressed -gt 0) { Log ('client window minimized x' + $pressed + '（key 走进程内注入，不需要焦点）') }
 		}
 	}
 
@@ -779,16 +804,7 @@ catch {
 finally {
 	if ($Detach) {
 		# 常驻模式：什么都不杀，只把会话信息落盘
-		try {
-			$sess = [PSCustomObject]@{
-				lab = $Lab; labRoot = $LabRoot; port = $Port;
-				serverPid = if ($serverProc) { $serverProc.Id } else { 0 };
-				clientPid = if ($clientProc) { $clientProc.Id } else { 0 };
-				startedAt = (Get-Date).ToString('o'); client = [bool]$Client
-			}
-			$sess | ConvertTo-Json | Set-Content (Join-Path $LabRoot '.session.json') -Encoding utf8
-			Log ('session saved -> ' + (Join-Path $LabRoot '.session.json'))
-		} catch { Log ('session save failed: ' + $_.Exception.Message) }
+		Save-Session
 	}
 	else {
 	try {

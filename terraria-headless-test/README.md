@@ -129,6 +129,13 @@ pwsh -File terraria-headless-test/resources/scripts/tml.ps1 ... -Detach         
 漏掉第 1 步时，旧服务端会继续持有旧 `.tmod`，你会看到“改了没生效”。驱动现在会自动停旧会话，
 并打印 `tmod: mtime=… sha12=… age=…min` 与失败阈值（`age>30min` 直接失败，可用 `-AllowStaleTmod` 放行）。
 
+## 不打断你正在用的电脑
+
+- 所有子进程 `-WindowStyle Hidden`：不会弹控制台窗口抢焦点
+- 客户端用 `-MinimizeClient`：起来后盯 4 秒反复最小化，且不激活窗口
+- 桌面截图 `win-ui.ps1` 默认不抢焦点（`PrintWindow` 可拍被遮挡窗口）
+- 静音：`SDL_AUDIODRIVER=dummy` + 音量 0
+
 ## 关键设计（都是被坑出来的）
 
 - **空服务器不 tick** → 用假连接（`HeadlessLink`）占住 `Netplay.Clients[254]`；L2 时必须 `link off`，否则真客户端被挤掉。
