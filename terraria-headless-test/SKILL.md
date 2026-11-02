@@ -196,6 +196,7 @@ c:uiact nope             -> REFUSED ... 已注册: zoom,gems.page
 | 脚本 | 关键参数 |
 |---|---|
 | `tml.ps1` | `-Lab` `-ModName` `-Tmod`/`-ProjectPath`/`-ModDir` `-TmlDir` `-Client` `-Player` `-MinimizeClient` `-Detach` `-Port` `-Commands` `-Expect` `-TimeoutSec` `-Mute` `-IsolatedWorkshop` `-LegacyEnv` `-LegacyBridge` `-PlanOnly` |
+| `-Resolution 1920x1080` | 客户端窗口尺寸；默认 1920×1080（模板里 UI 缩放 1.0 / 世界缩放 1.0） |
 | `session.ps1` | `-Action Run|Suite|Status|Stop` `-Lab` `-Commands` `-Expect` `-ExpectLog` `-Recipe` `-Args` `-Suite` `-TimeoutSec` `-SettleSec` `-CaseTimeoutSec` `-StopOnFail` |
 | `suites.ps1` | `-Suite` `-Parallel` `-ModName` `-Tmod` `-TmlDir` `-Port` `-Client` `-Player` `-Keep` |
 | `preflight-client.ps1` | `-TmlDir` `-WaitSec` |

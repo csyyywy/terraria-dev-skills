@@ -130,7 +130,21 @@ $SaveDir = Join-Path $LabRoot 'saves'
 if (Test-Path $cfgTemplate) {
 	New-Item -ItemType Directory -Force -Path $SaveDir | Out-Null
 	$cfgTarget = Join-Path $SaveDir 'config.json'
-	if (-not (Test-Path $cfgTarget)) { Copy-Item $cfgTemplate $cfgTarget -Force }
+	$wantRes = if ($Resolution) { $Resolution } else { $null }
+	$needPatch = (-not (Test-Path $cfgTarget)) -or $wantRes
+	if ($needPatch) {
+		# 每次都从模板重建：保证分辨率等模板改动对已有 lab 也生效
+		Copy-Item $cfgTemplate $cfgTarget -Force
+		if ($wantRes) {
+			if ($wantRes -notmatch '^(\d{3,5})x(\d{3,5})$') { throw "-Resolution 格式应为 WxH，例如 1920x1080（收到：$wantRes）" }
+			$rw = $Matches[1]; $rh = $Matches[2]
+			$cfg = Get-Content $cfgTarget -Raw
+			$cfg = $cfg -replace '"DisplayWidth":\s*\d+', ('"DisplayWidth": ' + $rw)
+			$cfg = $cfg -replace '"DisplayHeight":\s*\d+', ('"DisplayHeight": ' + $rh)
+			Set-Content $cfgTarget $cfg -Encoding utf8
+			Log ("client resolution -> $rw x $rh")
+		}
+	}
 }
 $WorldsDir = Join-Path $SaveDir 'Worlds'
 

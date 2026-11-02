@@ -110,6 +110,9 @@ pwsh -File terraria-headless-test/resources/scripts/session.ps1 -Action Suite -L
   -Suite terraria-headless-test/resources/suites/l2-interaction.json
 ```
 
+客户端默认按 **1920×1080、UI 缩放 1.0** 启动（贴近日常使用，截图就是全屏尺寸）。
+想换尺寸：`-Resolution 1280x720`（只改窗口，不改模板）。
+
 产物在 `~/.tmlkit/labs/<lab>/`：`out/*.png`、`out/log-*.txt`、`out/boot-*.log`、`.session.json`。
 
 **首次运行会比之后慢很多**：新 lab 要现生成世界（`-WorldGenSec` 默认 300 秒，期间会打印生成进度），
