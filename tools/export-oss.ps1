@@ -31,8 +31,11 @@ New-Item -ItemType Directory -Force -Path $Out | Out-Null
 
 foreach ($s in $Skills) {
 	$from = Join-Path $src $s
+	if (-not (Test-Path $from)) { $from = Join-Path (Join-Path $src 'optional') $s }
 	if (-not (Test-Path $from)) { Write-Host ("跳过（不存在）：" + $s); continue }
-	Copy-Item $from (Join-Path $Out $s) -Recurse -Force
+	$dest = if ($s -eq 'silky-ui-framework') { Join-Path (Join-Path $Out 'optional') $s } else { Join-Path $Out $s }
+	New-Item -ItemType Directory -Force -Path (Split-Path -Parent $dest) | Out-Null
+	Copy-Item $from $dest -Recurse -Force
 	Write-Host ("copied " + $s)
 }
 foreach ($f in @('README.md', 'LICENSE', 'NOTICE.md')) {
